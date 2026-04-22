@@ -429,7 +429,6 @@ def get_today():
 @app.route("/api/withings/history")
 def withings_history():
     try:
-        sys.path.insert(0, str(SCRIPTS_DIR))
         from withings_fetcher import fetch_withings_history
 
         history = fetch_withings_history(days=90)

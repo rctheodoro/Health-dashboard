@@ -1687,79 +1687,87 @@
       const rows = Array.isArray(state.longterm?.rows) ? state.longterm.rows : [];
       const message = state.longterm?.message || null;
       const longtermChartIds = ['chart-longterm-rhr', 'chart-longterm-sleep', 'chart-longterm-hrv'];
+      const hasRows = rows.length > 0;
+      const hasRestingHr = rows.some(row => row.avg_resting_hr != null);
+      const hasSleepScore = rows.some(row => row.avg_sleep_score != null);
+      const hasHrv = rows.some(row => row.avg_hrv_overnight != null);
 
       if (message) {
         messageEl.textContent = message;
         messageEl.classList.remove('hidden');
-        longtermChartIds.forEach(id => {
-          if (charts[id]) {
-            charts[id].destroy();
-            delete charts[id];
-          }
-          const wrap = $(id)?.parentElement;
-          if (wrap) wrap.classList.add('hidden');
-        });
+        setChartEmptyState('chart-longterm-rhr', 'Resting HR trend will appear as historical data accumulates.');
+        setChartEmptyState('chart-longterm-sleep', 'Sleep trend will appear as historical data accumulates.');
+        setChartEmptyState('chart-longterm-hrv', 'HRV trend will appear as historical data accumulates.');
         return;
       }
 
-      longtermChartIds.forEach(id => {
-        const wrap = $(id)?.parentElement;
-        if (wrap) wrap.classList.remove('hidden');
-      });
-
-      if (!rows.length) {
-        messageEl.textContent = message || 'Insufficient historical data — charts will populate over time';
+      if (!hasRows || (!hasRestingHr && !hasSleepScore && !hasHrv)) {
+        messageEl.textContent = 'Insufficient historical data — charts will populate over time';
         messageEl.classList.remove('hidden');
-      } else {
-        const hasData = rows.some(row => row.avg_resting_hr != null || row.avg_sleep_score != null || row.avg_hrv_overnight != null);
-        messageEl.textContent = hasData ? '' : 'Insufficient historical data — charts will populate over time';
-        if (hasData) messageEl.classList.add('hidden');
-        else messageEl.classList.remove('hidden');
+        setChartEmptyState('chart-longterm-rhr', 'No resting HR history yet.');
+        setChartEmptyState('chart-longterm-sleep', 'No sleep score history yet.');
+        setChartEmptyState('chart-longterm-hrv', 'No HRV history yet.');
+        return;
       }
+
+      messageEl.textContent = '';
+      messageEl.classList.add('hidden');
 
       const labels = rows.map(item => item.period_label || formatDateLabel(item.period_start));
 
-      renderChart('chart-longterm-rhr', {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [{ label: 'Resting HR', data: rows.map(item => item.avg_resting_hr), borderColor: PALETTE.red, backgroundColor: 'transparent' }],
-        },
-        options: chartOptions({
-          scales: {
-            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { maxTicksLimit: 6, maxRotation: 0 } },
-            y: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { callback: value => `${value} bpm` } },
+      if (!hasRestingHr) {
+        setChartEmptyState('chart-longterm-rhr', 'No resting HR history yet.');
+      } else {
+        renderChart('chart-longterm-rhr', {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{ label: 'Resting HR', data: rows.map(item => item.avg_resting_hr), borderColor: PALETTE.red, backgroundColor: 'transparent' }],
           },
-        }),
-      });
+          options: chartOptions({
+            scales: {
+              x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { maxTicksLimit: 6, maxRotation: 0 } },
+              y: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { callback: value => `${value} bpm` } },
+            },
+          }),
+        });
+      }
 
-      renderChart('chart-longterm-sleep', {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [{ label: 'Sleep Score', data: rows.map(item => item.avg_sleep_score), borderColor: PALETTE.oura, backgroundColor: 'transparent' }],
-        },
-        options: chartOptions({
-          scales: {
-            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { maxTicksLimit: 6, maxRotation: 0 } },
-            y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.06)' } },
+      if (!hasSleepScore) {
+        setChartEmptyState('chart-longterm-sleep', 'No sleep score history yet.');
+      } else {
+        renderChart('chart-longterm-sleep', {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{ label: 'Sleep Score', data: rows.map(item => item.avg_sleep_score), borderColor: PALETTE.oura, backgroundColor: 'transparent' }],
           },
-        }),
-      });
+          options: chartOptions({
+            scales: {
+              x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { maxTicksLimit: 6, maxRotation: 0 } },
+              y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.06)' } },
+            },
+          }),
+        });
+      }
 
-      renderChart('chart-longterm-hrv', {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [{ label: 'HRV', data: rows.map(item => item.avg_hrv_overnight), borderColor: PALETTE.green, backgroundColor: 'transparent' }],
-        },
-        options: chartOptions({
-          scales: {
-            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { maxTicksLimit: 6, maxRotation: 0 } },
-            y: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { callback: value => `${value} ms` } },
+      if (!hasHrv) {
+        setChartEmptyState('chart-longterm-hrv', 'No HRV history yet.');
+      } else {
+        renderChart('chart-longterm-hrv', {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{ label: 'HRV', data: rows.map(item => item.avg_hrv_overnight), borderColor: PALETTE.green, backgroundColor: 'transparent' }],
           },
-        }),
-      });
+          options: chartOptions({
+            scales: {
+              x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { maxTicksLimit: 6, maxRotation: 0 } },
+              y: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { callback: value => `${value} ms` } },
+            },
+          }),
+        });
+      }
     }
 
     function restoreInsightsCache() {

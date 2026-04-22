@@ -274,6 +274,15 @@
       border: 1px solid var(--border);
     }
 
+    .table-wrap.max-300 {
+      max-height: 300px;
+    }
+
+    .table-wrap.max-400 {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
@@ -302,6 +311,26 @@
     }
 
     tr:last-child td { border-bottom: none; }
+
+    .sleep-device-row td:first-child {
+      font-weight: 700;
+    }
+
+    .sleep-device-row.garmin-row {
+      background: linear-gradient(90deg, rgba(79, 156, 249, 0.14), rgba(79, 156, 249, 0.05));
+    }
+
+    .sleep-device-row.oura-row {
+      background: linear-gradient(90deg, rgba(167, 139, 250, 0.14), rgba(167, 139, 250, 0.05));
+    }
+
+    .sleep-device-row.eight-row {
+      background: linear-gradient(90deg, rgba(251, 146, 60, 0.14), rgba(251, 146, 60, 0.05));
+    }
+
+    .sleep-history-table tbody tr:nth-child(even) {
+      background: rgba(255, 255, 255, 0.025);
+    }
 
     .chart-wrap {
       position: relative;
@@ -501,7 +530,7 @@
             </div>
             <div class="card-updated" data-updated-group="core">Last updated —</div>
           </div>
-          <div id="sleep-comparison"><div class="loading">Loading...</div></div>
+          <div id="sleep-comparison-panel"><div class="loading">Loading...</div></div>
         </article>
         <article class="card">
           <div class="card-header">
@@ -511,7 +540,7 @@
             </div>
             <div class="card-updated" data-updated-group="core">Last updated —</div>
           </div>
-          <div class="chart-wrap short">
+          <div class="chart-wrap short" data-chart-wrap="chart-sleep-score">
             <canvas id="chart-sleep-score"></canvas>
           </div>
         </article>
@@ -530,7 +559,7 @@
         <div class="card-header">
           <div>
             <h3 class="card-title">30-Day Sleep History</h3>
-            <div class="card-subtitle">Date, Garmin, Oura, and Eight Sleep totals with deep and REM</div>
+            <div class="card-subtitle">Newest first with total and deep sleep across all three devices</div>
           </div>
           <div class="card-updated" data-updated-group="core">Last updated —</div>
         </div>
@@ -824,7 +853,6 @@
       garminActivities: [],
       withingsHistory: [],
       eightSleepHistory: [],
-      eightSleepLastNight: [],
       longterm: { rows: [], message: null },
       fetchedAt: null,
       longtermFetchedAt: null,
@@ -867,6 +895,15 @@
       return hours > 0 ? `${hours}h ${String(minutes).padStart(2, '0')}m` : `${minutes}m`;
     }
 
+    function formatSleepDuration(seconds) {
+      if (seconds === null || seconds === undefined) return '—';
+      const total = Math.round(Number(seconds));
+      if (!Number.isFinite(total) || total <= 0) return '—';
+      const hours = Math.floor(total / 3600);
+      const minutes = Math.floor((total % 3600) / 60);
+      return `${hours}h ${minutes}m`;
+    }
+
     function formatActivityDuration(seconds) {
       if (seconds === null || seconds === undefined) return '—';
       const total = Math.round(Number(seconds));
@@ -882,6 +919,14 @@
 
     function formatPercent(value) {
       return dash(value, item => `${Number(item).toFixed(1)}%`);
+    }
+
+    function deriveSleepStagePercent(stageSeconds, totalSeconds) {
+      if (stageSeconds === null || stageSeconds === undefined || totalSeconds === null || totalSeconds === undefined) return null;
+      const stage = Number(stageSeconds);
+      const total = Number(totalSeconds);
+      if (!Number.isFinite(stage) || !Number.isFinite(total) || total <= 0 || stage < 0) return null;
+      return (stage / total) * 100;
     }
 
     function formatKcal(value) {
@@ -955,11 +1000,16 @@
 
     function getOuraMetrics(record) {
       const session = getLongSleep(record);
+      const total = record?.oura?.total_sleep_duration ?? session?.total_sleep_duration ?? null;
+      const deep = session?.deep_sleep_duration ?? null;
+      const rem = session?.rem_sleep_duration ?? null;
       return {
         score: record?.oura?.daily_sleep?.score ?? null,
-        total: record?.oura?.total_sleep_duration ?? session?.total_sleep_duration ?? null,
-        deep: session?.deep_sleep_duration ?? null,
-        rem: session?.rem_sleep_duration ?? null,
+        total,
+        deep,
+        rem,
+        deepPercent: deriveSleepStagePercent(deep, total),
+        remPercent: deriveSleepStagePercent(rem, total),
         efficiency: record?.oura?.daily_sleep?.contributors?.efficiency ?? session?.efficiency ?? null,
         readiness: record?.oura?.daily_readiness?.score ?? null,
         hrv: record?.oura?.avg_rmssd ?? session?.average_hrv ?? null,
@@ -967,11 +1017,16 @@
     }
 
     function getGarminMetrics(point) {
+      const total = point?.sleep_time_seconds ?? point?.sleep?.total_sleep_s ?? null;
+      const deep = point?.deep_sleep_seconds ?? point?.sleep?.deep_sleep_s ?? null;
+      const rem = point?.rem_sleep_seconds ?? point?.sleep?.rem_sleep_s ?? null;
       return {
         score: point?.sleep_score ?? point?.sleep?.score ?? null,
-        total: point?.sleep_time_seconds ?? point?.sleep?.total_sleep_s ?? null,
-        deep: point?.deep_sleep_seconds ?? point?.sleep?.deep_sleep_s ?? null,
-        rem: point?.rem_sleep_seconds ?? point?.sleep?.rem_sleep_s ?? null,
+        total,
+        deep,
+        rem,
+        deepPercent: deriveSleepStagePercent(deep, total),
+        remPercent: deriveSleepStagePercent(rem, total),
         efficiency: point?.sleep_efficiency ?? null,
         readiness: point?.body_battery_max ?? null,
         hrv: point?.hrv_overnight ?? point?.hrv?.avgOvernightHrv ?? null,
@@ -979,11 +1034,16 @@
     }
 
     function getEightMetrics(point) {
+      const total = point?.sleep_duration_s ?? null;
+      const deep = point?.deep_sleep_s ?? null;
+      const rem = point?.rem_sleep_s ?? null;
       return {
         score: point?.sleep_score ?? null,
-        total: point?.sleep_duration_s ?? null,
-        deep: point?.deep_sleep_s ?? null,
-        rem: point?.rem_sleep_s ?? null,
+        total,
+        deep,
+        rem,
+        deepPercent: deriveSleepStagePercent(deep, total),
+        remPercent: deriveSleepStagePercent(rem, total),
         efficiency: point?.sleep_efficiency ?? (
           point?.sleep_duration_s && point?.awake_s !== null && point?.awake_s !== undefined
             ? ((point.sleep_duration_s / (point.sleep_duration_s + point.awake_s)) * 100)
@@ -992,6 +1052,120 @@
         readiness: null,
         hrv: point?.hrv ?? null,
       };
+    }
+
+    function buildGarminTrendMapFrom(garminTrends) {
+      return new Map((Array.isArray(garminTrends) ? garminTrends : []).map(point => [point.date, point]));
+    }
+
+    function buildOuraHistoryMapFrom(historyData) {
+      return new Map((Array.isArray(historyData) ? historyData : []).map(record => [record.date, record]));
+    }
+
+    function buildOuraHistoryMapWithToday(historyData, todayData) {
+      const map = buildOuraHistoryMapFrom(historyData);
+      if (todayData?.date) map.set(todayData.date, todayData);
+      return map;
+    }
+
+    function buildEightSleepMapFrom(eightSleepHistory) {
+      return new Map((Array.isArray(eightSleepHistory) ? eightSleepHistory : []).map(point => [point.date, point]));
+    }
+
+    function buildSleepScoreSeries(garminTrends, historyData, todayData, eightSleepHistory, days = 30) {
+      const garminMap = buildGarminTrendMapFrom(garminTrends);
+      const ouraMap = buildOuraHistoryMapWithToday(historyData, todayData);
+      const eightMap = buildEightSleepMapFrom(eightSleepHistory);
+
+      return lastNDates(days).map(date => ({
+        date,
+        garmin: getGarminMetrics(garminMap.get(date) || null),
+        oura: getOuraMetrics(ouraMap.get(date) || null),
+        eight: getEightMetrics(eightMap.get(date) || null),
+      }));
+    }
+
+    function renderSleepComparison(garminTrends, todayData, eightSleepHistory) {
+      const latestGarminTrend = Array.isArray(garminTrends) ? garminTrends[garminTrends.length - 1] || null : null;
+      const latestEightSleep = Array.isArray(eightSleepHistory) ? eightSleepHistory[eightSleepHistory.length - 1] || null : null;
+      const comparisonRows = [
+        ['Garmin', PALETTE.garmin, 'garmin-row', getGarminMetrics(latestGarminTrend)],
+        ['Oura', PALETTE.oura, 'oura-row', getOuraMetrics(todayData)],
+        ['Eight Sleep', PALETTE.eight, 'eight-row', getEightMetrics(latestEightSleep)],
+      ];
+
+      $('sleep-comparison-panel').innerHTML = `
+        <div class="table-wrap">
+          <table id="sleep-comparison">
+            <thead>
+              <tr>
+                <th>Device</th>
+                <th>Sleep Score</th>
+                <th>Total Sleep</th>
+                <th>Deep Sleep%</th>
+                <th>REM%</th>
+                <th>Efficiency</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${comparisonRows.map(([label, color, rowClass, metrics]) => `
+                <tr class="sleep-device-row ${rowClass}">
+                  <td><span class="device-dot" style="background:${color}"></span>${label}</td>
+                  <td>${formatScore(metrics.score)}</td>
+                  <td>${formatSleepDuration(metrics.total)}</td>
+                  <td>${formatPercent(metrics.deepPercent)}</td>
+                  <td>${formatPercent(metrics.remPercent)}</td>
+                  <td>${formatPercent(metrics.efficiency)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderSleepHistory30d(garminTrends, historyData, todayData, eightSleepHistory) {
+      const garminMap = buildGarminTrendMapFrom(garminTrends);
+      const ouraMap = buildOuraHistoryMapWithToday(historyData, todayData);
+      const eightMap = buildEightSleepMapFrom(eightSleepHistory);
+      const rows = lastNDates(30).reverse().map(date => {
+        const garmin = getGarminMetrics(garminMap.get(date) || null);
+        const oura = getOuraMetrics(ouraMap.get(date) || null);
+        const eight = getEightMetrics(eightMap.get(date) || null);
+
+        return `
+          <tr>
+            <td>${formatDateLabel(date)}</td>
+            <td>${formatScore(garmin.score)}</td>
+            <td>${formatScore(oura.score)}</td>
+            <td>${formatScore(eight.score)}</td>
+            <td>${formatSleepDuration(garmin.total)}</td>
+            <td>${formatPercent(garmin.deepPercent)}</td>
+            <td>${formatSleepDuration(oura.total)}</td>
+            <td>${formatSleepDuration(eight.total)}</td>
+          </tr>
+        `;
+      }).join('');
+
+      $('sleep-history').innerHTML = `
+        <div class="table-wrap max-400">
+          <table id="sleep-history-30d" class="sleep-history-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Garmin Score</th>
+                <th>Oura Score</th>
+                <th>Eight Score</th>
+                <th>Garmin Total</th>
+                <th>Garmin Deep%</th>
+                <th>Oura Total</th>
+                <th>Eight Sleep Total</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      `;
     }
 
     function lastNDates(days) {
@@ -1071,8 +1245,27 @@
       };
     }
 
+    function ensureChartCanvas(id) {
+      let canvas = $(id);
+      if (canvas) return canvas;
+      const wrap = document.querySelector(`[data-chart-wrap="${id}"]`);
+      if (!wrap) return null;
+      wrap.innerHTML = `<canvas id="${id}"></canvas>`;
+      return $(id);
+    }
+
+    function setChartEmptyState(id, message) {
+      if (charts[id]) {
+        charts[id].destroy();
+        delete charts[id];
+      }
+      const wrap = document.querySelector(`[data-chart-wrap="${id}"]`);
+      if (!wrap) return;
+      wrap.innerHTML = emptyMarkup(message);
+    }
+
     function renderChart(id, config) {
-      const canvas = $(id);
+      const canvas = ensureChartCanvas(id);
       if (!canvas) return;
       if (charts[id]) charts[id].destroy();
       charts[id] = new Chart(canvas, config);
@@ -1090,7 +1283,7 @@
 
     async function fetchAll() {
       setStatus('Loading dashboard…', PALETTE.yellow);
-      const sleepComparisonEl = $('sleep-comparison');
+      const sleepComparisonEl = $('sleep-comparison-panel');
       const sleepHistoryEl = $('sleep-history');
       const activityTableEl = $('activity-table');
 
@@ -1106,12 +1299,11 @@
           fetchJson('/api/garmin/activities?days=30'),
           fetchJson('/api/withings/history'),
           fetchJson('/api/eightsleep/history?days=30'),
-          fetchJson('/api/eightsleep/history?days=1'),
           fetchJson('/api/garmin/longterm'),
         ]);
 
         const failures = results.filter(result => result.status === 'rejected');
-        const [historyData, todayData, garminTrends, garminActivities, withingsHistory, eightSleepHistory, eightSleepLastNight, longterm] = results.map(result =>
+        const [historyData, todayData, garminTrends, garminActivities, withingsHistory, eightSleepHistory, longterm] = results.map(result =>
           result.status === 'fulfilled' ? result.value : null
         );
 
@@ -1125,7 +1317,6 @@
         state.garminActivities = Array.isArray(garminActivities) ? garminActivities : [];
         state.withingsHistory = Array.isArray(withingsHistory) ? withingsHistory : [];
         state.eightSleepHistory = Array.isArray(eightSleepHistory) ? eightSleepHistory : [];
-        state.eightSleepLastNight = Array.isArray(eightSleepLastNight) ? eightSleepLastNight : [];
         state.longterm = longterm || { rows: [], message: null };
         state.fetchedAt = new Date();
         state.longtermFetchedAt = new Date();
@@ -1139,7 +1330,7 @@
         );
       } catch (error) {
         setStatus(`Load failed: ${error.message}`, PALETTE.red);
-        $('sleep-comparison').innerHTML = emptyMarkup(error.message);
+        $('sleep-comparison-panel').innerHTML = emptyMarkup(error.message);
         $('sleep-history').innerHTML = emptyMarkup('Unable to build sleep history right now.');
         $('activity-table').innerHTML = emptyMarkup('Unable to load Garmin activities right now.');
       }
@@ -1148,6 +1339,7 @@
     function renderDashboard() {
       const today = state.todayData || state.historyData[state.historyData.length - 1];
       const series = buildSeries(30);
+      const sleepScoreSeries = buildSleepScoreSeries(state.garminTrends, state.historyData, state.todayData, state.eightSleepHistory, 30);
 
       $('hero-date').textContent = today?.date ? formatLongDate(today.date) : 'Latest record unavailable';
       $('hero-subtitle').textContent = 'Unified sleep, recovery, body composition, and Garmin activity tracking across the latest available data.';
@@ -1158,7 +1350,7 @@
       scoreEl.className = `score-value ${score === null ? '' : score >= 70 ? 'score-good' : score >= 55 ? 'score-mid' : 'score-low'}`;
       $('alfred-advice').textContent = today?.computed?.advice || 'No current advice available.';
 
-      renderSleepSection(today, series);
+      renderSleepSection(today, sleepScoreSeries);
       renderRecoverySection(today, series);
       renderBodySection(today);
       renderActivitySection(today);
@@ -1166,116 +1358,67 @@
       renderLongtermSection();
     }
 
-    function renderSleepSection(today, series) {
-      const latestGarminTrend = state.garminTrends[state.garminTrends.length - 1] || null;
-      const latestEightSleep = state.eightSleepLastNight[state.eightSleepLastNight.length - 1] || state.eightSleepHistory[state.eightSleepHistory.length - 1] || null;
-      const comparisonRows = [
-        ['Garmin', PALETTE.garmin, getGarminMetrics({
-          sleep_score: today?.garmin?.sleep?.score ?? latestGarminTrend?.sleep_score ?? null,
-          sleep_time_seconds: today?.garmin?.sleep?.total_sleep_s ?? latestGarminTrend?.sleep_time_seconds ?? null,
-          deep_sleep_seconds: today?.garmin?.sleep?.deep_sleep_s ?? latestGarminTrend?.deep_sleep_seconds ?? null,
-          rem_sleep_seconds: today?.garmin?.sleep?.rem_sleep_s ?? latestGarminTrend?.rem_sleep_seconds ?? null,
-          sleep_efficiency: latestGarminTrend?.sleep_efficiency ?? null,
-        })],
-        ['Oura', PALETTE.oura, getOuraMetrics(today)],
-        ['Eight Sleep', PALETTE.eight, getEightMetrics(latestEightSleep || {})],
-      ];
+    function renderSleepSection(today, sleepScoreSeries) {
+      renderSleepComparison(state.garminTrends, state.todayData, state.eightSleepHistory);
+      renderSleepHistory30d(state.garminTrends, state.historyData, state.todayData, state.eightSleepHistory);
 
-      $('sleep-comparison').innerHTML = `
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Device</th>
-                <th>Total Sleep</th>
-                <th>Deep Sleep</th>
-                <th>REM</th>
-                <th>Efficiency</th>
-                <th>Score</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${comparisonRows.map(([label, color, metrics]) => `
-                <tr>
-                  <td><span class="device-dot" style="background:${color}"></span>${label}</td>
-                  <td>${formatDuration(metrics.total)}</td>
-                  <td>${formatDuration(metrics.deep)}</td>
-                  <td>${formatDuration(metrics.rem)}</td>
-                  <td>${formatPercent(metrics.efficiency)}</td>
-                  <td>${dash(metrics.score, item => `${Math.round(item)}`)}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      `;
+      const todayGarmin = getGarminMetrics(today?.garmin?.sleep ? {
+        sleep_score: today.garmin.sleep.score,
+        sleep_time_seconds: today.garmin.sleep.total_sleep_s,
+        deep_sleep_seconds: today.garmin.sleep.deep_sleep_s,
+        rem_sleep_seconds: today.garmin.sleep.rem_sleep_s,
+        sleep_efficiency: null,
+      } : null);
+      const todayOura = getOuraMetrics(today);
+      const todayEight = getEightMetrics(today?.eightsleep || null);
 
       $('sleep-summary-list').innerHTML = `
-        <div class="metric-row"><span class="metric-label">Oura Total Sleep</span><span class="metric-value oura">${formatDuration(getOuraMetrics(today).total)}</span></div>
-        <div class="metric-row"><span class="metric-label">Garmin Total Sleep</span><span class="metric-value garmin">${formatDuration(today?.garmin?.sleep?.total_sleep_s ?? null)}</span></div>
-        <div class="metric-row"><span class="metric-label">Eight Sleep Total</span><span class="metric-value eight">${formatDuration(today?.eightsleep?.sleep_duration_s ?? null)}</span></div>
-        <div class="metric-row"><span class="metric-label">Oura Deep / REM</span><span class="metric-value">${formatDuration(getOuraMetrics(today).deep)} / ${formatDuration(getOuraMetrics(today).rem)}</span></div>
-        <div class="metric-row"><span class="metric-label">Garmin Deep / REM</span><span class="metric-value">${formatDuration(today?.garmin?.sleep?.deep_sleep_s ?? null)} / ${formatDuration(today?.garmin?.sleep?.rem_sleep_s ?? null)}</span></div>
-        <div class="metric-row"><span class="metric-label">Eight Deep / REM</span><span class="metric-value">${formatDuration(today?.eightsleep?.deep_sleep_s ?? null)} / ${formatDuration(today?.eightsleep?.rem_sleep_s ?? null)}</span></div>
+        <div class="metric-row"><span class="metric-label">Oura Total Sleep</span><span class="metric-value oura">${formatSleepDuration(todayOura.total)}</span></div>
+        <div class="metric-row"><span class="metric-label">Garmin Total Sleep</span><span class="metric-value garmin">${formatSleepDuration(todayGarmin.total)}</span></div>
+        <div class="metric-row"><span class="metric-label">Eight Sleep Total</span><span class="metric-value eight">${formatSleepDuration(todayEight.total)}</span></div>
+        <div class="metric-row"><span class="metric-label">Oura Deep / REM</span><span class="metric-value">${formatSleepDuration(todayOura.deep)} / ${formatSleepDuration(todayOura.rem)}</span></div>
+        <div class="metric-row"><span class="metric-label">Garmin Deep / REM</span><span class="metric-value">${formatSleepDuration(todayGarmin.deep)} / ${formatSleepDuration(todayGarmin.rem)}</span></div>
+        <div class="metric-row"><span class="metric-label">Eight Deep / REM</span><span class="metric-value">${formatSleepDuration(todayEight.deep)} / ${formatSleepDuration(todayEight.rem)}</span></div>
       `;
 
-      $('sleep-history').innerHTML = `
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Garmin (Total / Deep / REM)</th>
-                <th>Oura (Total / Deep / REM)</th>
-                <th>Eight Sleep (Total / Deep / REM)</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${series.map(day => `
-                <tr>
-                  <td>${formatDateLabel(day.date)}</td>
-                  <td>${formatDuration(day.garmin.total)} / ${formatDuration(day.garmin.deep)} / ${formatDuration(day.garmin.rem)}</td>
-                  <td>${formatDuration(day.oura.total)} / ${formatDuration(day.oura.deep)} / ${formatDuration(day.oura.rem)}</td>
-                  <td>${formatDuration(day.eight.total)} / ${formatDuration(day.eight.deep)} / ${formatDuration(day.eight.rem)}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      `;
-
-      renderChart('chart-sleep-score', {
-        type: 'line',
-        data: {
-          labels: series.map(day => formatDateLabel(day.date)),
-          datasets: [
-            {
-              label: 'Garmin',
-              data: series.map(day => day.garmin.score),
-              borderColor: PALETTE.garmin,
-              backgroundColor: 'transparent',
-            },
-            {
-              label: 'Oura',
-              data: series.map(day => day.oura.score),
-              borderColor: PALETTE.oura,
-              backgroundColor: 'transparent',
-            },
-            {
-              label: 'Eight Sleep',
-              data: series.map(day => day.eight.score),
-              borderColor: PALETTE.eight,
-              backgroundColor: 'transparent',
-            },
-          ],
+      const sleepScoreDatasets = [
+        {
+          label: 'Garmin',
+          data: sleepScoreSeries.map(day => day.garmin.score),
+          borderColor: PALETTE.garmin,
+          backgroundColor: 'transparent',
         },
-        options: chartOptions({
-          scales: {
-            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { maxTicksLimit: 8, maxRotation: 0 } },
-            y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.06)' } },
+        {
+          label: 'Oura',
+          data: sleepScoreSeries.map(day => day.oura.score),
+          borderColor: PALETTE.oura,
+          backgroundColor: 'transparent',
+        },
+        {
+          label: 'Eight Sleep',
+          data: sleepScoreSeries.map(day => day.eight.score),
+          borderColor: PALETTE.eight,
+          backgroundColor: 'transparent',
+        },
+      ].filter(dataset => dataset.data.some(value => value !== null && value !== undefined));
+
+      if (!sleepScoreDatasets.length) {
+        setChartEmptyState('chart-sleep-score', 'No sleep score data available for the last 30 days.');
+      } else {
+        renderChart('chart-sleep-score', {
+          type: 'line',
+          data: {
+            labels: sleepScoreSeries.map(day => formatDateLabel(day.date)),
+            datasets: sleepScoreDatasets,
           },
-        }),
-      });
+          options: chartOptions({
+            scales: {
+              x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { maxTicksLimit: 8, maxRotation: 0 } },
+              y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.06)' } },
+            },
+          }),
+        });
+      }
     }
 
     function renderRecoverySection(today, series) {

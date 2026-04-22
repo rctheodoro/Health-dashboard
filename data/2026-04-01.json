@@ -1,0 +1,23 @@
+{
+  "date": "2026-04-01",
+  "oura": null,
+  "garmin": null,
+  "withings": {
+    "weight_kg": 94.41,
+    "fat_mass_kg": 23.49,
+    "fat_ratio_pct": 24.88,
+    "fat_free_mass_kg": 70.92,
+    "measured_at": 1775038927
+  },
+  "morpheus": {
+    "score": 92,
+    "hrv": 74,
+    "notes": ""
+  },
+  "eightsleep": null,
+  "computed": {
+    "overall_score": 90,
+    "advice": "Peak day. Push hard.",
+    "oura_synced": false
+  }
+}

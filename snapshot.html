@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Alfred Health Dashboard — April 2, 2026</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0d0f14;
+    --card:      #161a23;
+    --card2:     #1c2130;
+    --border:    #252b3b;
+    --accent:    #6366f1;
+    --accent2:   #818cf8;
+    --green:     #22c55e;
+    --yellow:    #f59e0b;
+    --red:       #ef4444;
+    --text:      #e2e8f0;
+    --muted:     #64748b;
+    --dim:       #94a3b8;
+  }
+
+  html { font-size: 16px; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+    min-height: 100vh;
+    padding: 0 0 48px 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Header ───────────────────────────────── */
+  .header {
+    padding: 28px 20px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .header-date {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .header-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.3px;
+  }
+
+  /* ── Overall Score Hero ───────────────────── */
+  .hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 20px 8px;
+    gap: 12px;
+  }
+  .ring-wrap {
+    position: relative;
+    width: 160px;
+    height: 160px;
+  }
+  .ring-wrap svg {
+    transform: rotate(-90deg);
+  }
+  .ring-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+  }
+  .ring-score {
+    font-size: 46px;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1;
+    letter-spacing: -2px;
+  }
+  .ring-label {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .hero-advice {
+    background: linear-gradient(135deg, #6366f120 0%, #818cf810 100%);
+    border: 1px solid #6366f140;
+    border-radius: 12px;
+    padding: 10px 18px;
+    text-align: center;
+    max-width: 320px;
+  }
+  .hero-advice-label {
+    font-size: 11px;
+    color: var(--accent2);
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+  }
+  .hero-advice-text {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  /* ── Section Labels ───────────────────────── */
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 20px 20px 8px;
+  }
+
+  /* ── Cards ────────────────────────────────── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    margin: 0 12px 10px;
+    padding: 16px;
+    overflow: hidden;
+  }
+  .card-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--dim);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  /* ── Sleep Comparison ─────────────────────── */
+  .sleep-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 0 12px 10px;
+  }
+  .sleep-col {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px 12px;
+  }
+  .sleep-source {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .sleep-source-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .sleep-source-name {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+
+  /* Score mini ring */
+  .mini-ring-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+    position: relative;
+  }
+  .mini-ring-wrap svg { transform: rotate(-90deg); }
+  .mini-ring-center {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .mini-ring-num {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -1px;
+  }
+  .mini-ring-lbl {
+    font-size: 9px;
+    color: var(--muted);
+    font-weight: 500;
+    text-transform: uppercase;
+  }
+
+  /* Sleep bar chart */
+  .sleep-stages { display: flex; flex-direction: column; gap: 7px; }
+  .stage-row { display: flex; flex-direction: column; gap: 3px; }
+  .stage-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .stage-name { font-size: 10px; color: var(--muted); font-weight: 500; }
+  .stage-val { font-size: 11px; color: var(--dim); font-weight: 600; }
+  .stage-bar-bg {
+    height: 5px;
+    background: #ffffff0d;
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .stage-bar-fill {
+    height: 100%;
+    border-radius: 99px;
+    transition: width 0.6s cubic-bezier(.4,0,.2,1);
+  }
+
+  /* sleep stats list */
+  .sleep-stats { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    border-bottom: 1px solid #ffffff07;
+  }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-name { font-size: 11px; color: var(--muted); }
+  .stat-val-wrap { display: flex; align-items: center; gap: 5px; }
+  .stat-val { font-size: 12px; font-weight: 600; color: var(--text); }
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dot-green { background: var(--green); }
+  .dot-yellow { background: var(--yellow); }
+  .dot-red { background: var(--red); }
+
+  /* ── Recovery Card ────────────────────────── */
+  .recovery-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 0 12px 10px;
+  }
+  .metric-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .metric-card-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .metric-big {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -1px;
+  }
+  .metric-sub {
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* HRV comparison row */
+  .hrv-compare {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+    justify-content: center;
+  }
+  .hrv-item { text-align: center; }
+  .hrv-src { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+  .hrv-val { font-size: 20px; font-weight: 800; line-height: 1.1; }
+  .hrv-unit { font-size: 10px; color: var(--muted); }
+  .hrv-sep { width: 1px; background: var(--border); align-self: stretch; }
+
+  /* ── Readiness Contributors ───────────────── */
+  .contrib-list { display: flex; flex-direction: column; gap: 9px; }
+  .contrib-row { display: flex; align-items: center; gap: 10px; }
+  .contrib-name { font-size: 12px; color: var(--muted); flex: 1; }
+  .contrib-bar-bg {
+    flex: 2;
+    height: 6px;
+    background: #ffffff0d;
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .contrib-bar-fill {
+    height: 100%;
+    border-radius: 99px;
+  }
+  .contrib-val { font-size: 12px; font-weight: 700; color: var(--text); width: 28px; text-align: right; }
+
+  /* ── Body Card ────────────────────────────── */
+  .body-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  .body-metric {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 12px 8px;
+    background: var(--card2);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+  }
+  .body-val { font-size: 20px; font-weight: 800; line-height: 1; letter-spacing: -0.5px; }
+  .body-unit { font-size: 10px; color: var(--muted); font-weight: 500; }
+  .body-label { font-size: 10px; color: var(--muted); text-align: center; font-weight: 500; }
+
+  /* ── Temp / Breath / HR row ───────────────── */
+  .vitals-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .vital-item {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+  .vital-val { font-size: 16px; font-weight: 700; }
+  .vital-unit { font-size: 9px; color: var(--muted); }
+  .vital-label { font-size: 9px; color: var(--muted); text-align: center; }
+
+  /* ── Footer ───────────────────────────────── */
+  .footer {
+    text-align: center;
+    padding: 28px 20px 0;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* Pill badge */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 99px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  .pill-green { background: #22c55e18; color: var(--green); border: 1px solid #22c55e30; }
+  .pill-yellow { background: #f59e0b18; color: var(--yellow); border: 1px solid #f59e0b30; }
+  .pill-red { background: #ef444418; color: var(--red); border: 1px solid #ef444430; }
+</style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────── -->
+<div class="header">
+  <div class="header-date">April 2, 2026</div>
+  <div class="header-title">Morning Report</div>
+</div>
+
+<!-- ── Overall Score Hero ─────────────────────── -->
+<div class="hero">
+  <div class="ring-wrap">
+    <svg width="160" height="160" viewBox="0 0 160 160">
+      <!-- track -->
+      <circle cx="80" cy="80" r="68" fill="none" stroke="#ffffff0a" stroke-width="12"/>
+      <!-- fill: 78/100 = 78% of circumference -->
+      <!-- circumference = 2π×68 ≈ 427.26 -->
+      <circle cx="80" cy="80" r="68" fill="none"
+        stroke="url(#heroGrad)" stroke-width="12"
+        stroke-linecap="round"
+        stroke-dasharray="333.26 427.26"
+        stroke-dashoffset="0"/>
+      <defs>
+        <linearGradient id="heroGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#6366f1"/>
+          <stop offset="100%" stop-color="#a5b4fc"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    <div class="ring-center">
+      <span class="ring-score">78</span>
+      <span class="ring-label">Overall</span>
+    </div>
+  </div>
+  <div class="hero-advice">
+    <div class="hero-advice-label">Today's Verdict</div>
+    <div class="hero-advice-text">Solid. Full training OK. ✅</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- SLEEP COMPARISON                               -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="section-label">Sleep Comparison</div>
+
+<div class="sleep-grid">
+
+  <!-- OURA -->
+  <div class="sleep-col">
+    <div class="sleep-source">
+      <div class="sleep-source-dot" style="background:#6366f1"></div>
+      <div class="sleep-source-name">Oura</div>
+    </div>
+
+    <!-- Mini score ring -->
+    <div class="mini-ring-wrap" style="width:80px;height:80px;margin:0 auto 12px;">
+      <svg width="80" height="80" viewBox="0 0 80 80">
+        <circle cx="40" cy="40" r="33" fill="none" stroke="#ffffff0a" stroke-width="8"/>
+        <!-- 73/100 = 73% of 2π×33 ≈ 207.3 → 151.3 -->
+        <circle cx="40" cy="40" r="33" fill="none"
+          stroke="#6366f1" stroke-width="8"
+          stroke-linecap="round"
+          stroke-dasharray="151.4 207.3"/>
+      </svg>
+      <div class="mini-ring-center">
+        <span class="mini-ring-num" style="color:#818cf8">73</span>
+        <span class="mini-ring-lbl">sleep</span>
+      </div>
+    </div>
+
+    <div class="sleep-stages">
+      <!-- total -->
+      <div class="stage-row">
+        <div class="stage-header">
+          <span class="stage-name">Total</span>
+          <span class="stage-val">6h 26m</span>
+        </div>
+        <div class="stage-bar-bg">
+          <div class="stage-bar-fill" style="width:85%;background:#6366f1"></div>
+        </div>
+      </div>
+      <!-- deep -->
+      <div class="stage-row">
+        <div class="stage-header">
+          <span class="stage-name">Deep</span>
+          <span class="stage-val">1h 16m</span>
+        </div>
+        <div class="stage-bar-bg">
+          <div class="stage-bar-fill" style="width:20%;background:#4f46e5"></div>
+        </div>
+      </div>
+      <!-- rem -->
+      <div class="stage-row">
+        <div class="stage-header">
+          <span class="stage-name">REM</span>
+          <span class="stage-val">1h 41m</span>
+        </div>
+        <div class="stage-bar-bg">
+          <div class="stage-bar-fill" style="width:26%;background:#8b5cf6"></div>
+        </div>
+      </div>
+      <!-- light -->
+      <div class="stage-row">
+        <div class="stage-header">
+          <span class="stage-name">Light</span>
+          <span class="stage-val">3h 28m</span>
+        </div>
+        <div class="stage-bar-bg">
+          <!-- 12510/23160 ≈ 54% -->
+          <div class="stage-bar-fill" style="width:54%;background:#a5b4fc60"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sleep-stats">
+      <div class="stat-row">
+        <span class="stat-name">Efficiency</span>
+        <div class="stat-val-wrap">
+          <div class="dot dot-green"></div>
+          <span class="stat-val">99%</span>
+        </div>
+      </div>
+      <div class="stat-row">
+        <span class="stat-name">Latency</span>
+        <div class="stat-val-wrap">
+          <div class="dot dot-red"></div>
+          <span class="stat-val">70 min</span>
+        </div>
+      </div>
+      <div class="stat-row">
+        <span class="stat-name">Avg HR</span>
+        <div class="stat-val-wrap">
+          <div class="dot dot-green"></div>
+          <span class="stat-val">57.3 bpm</span>
+        </div>
+      </div>
+      <div class="stat-row">
+        <span class="stat-name">Breath</span>
+        <div class="stat-val-wrap">
+          <div class="dot dot-green"></div>
+          <span class="stat-val">11.8 rpm</span>
+        </div>
+      </div>
+      <div class="stat-row">
+        <span class="stat-name">Body Temp</span>
+        <div class="stat-val-wrap">
+          <div class="dot dot-green"></div>
+          <span class="stat-val">+0.19°C</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EIGHT SLEEP -->
+  <div class="sleep-col">
+    <div class="sleep-source">
+      <div class="sleep-source-dot" style="background:#22c55e"></div>
+      <div class="sleep-source-name">Eight</div>
+    </div>
+
+    <div class="mini-ring-wrap" style="width:80px;height:80px;margin:0 auto 12px;">
+      <svg width="80" height="80" viewBox="0 0 80 80">
+        <circle cx="40" cy="40" r="33" fill="none" stroke="#ffffff0a" stroke-width="8"/>
+        <!-- 7h6m / 8h = ~88.75% → 207.3×0.8875 ≈ 183.98 -->
+        <circle cx="40" cy="40" r="33" fill="none"
+          stroke="#22c55e" stroke-width="8"
+          stroke-linecap="round"
+          stroke-dasharray="184.0 207.3"/>
+      </svg>
+      <div class="mini-ring-center">
+        <span class="mini-ring-num" style="color:#4ade80">7h6</span>
+        <span class="mini-ring-lbl">sleep</span>
+      </div>
+    </div>
+
+    <div class="sleep-stages">
+      <!-- total -->
+      <div class="stage-row">
+        <div class="stage-header">
+          <span class="stage-name">Total</span>
+          <span class="stage-val">7h 6m</span>
+        </div>
+        <div class="stage-bar-bg">
+          <div class="stage-bar-fill" style="width:94%;background:#22c55e"></div>
+        </div>
+      </div>
+      <!-- deep -->
+      <div class="stage-row">
+        <div class="stage-header">
+          <span class="stage-name">Deep</span>
+          <span class="stage-val">1h 28m</span>
+        </div>
+        <div class="stage-bar-bg">
+          <!-- 5280/25620 ≈ 20.6% -->
+          <div class="stage-bar-fill" style="width:21%;background:#16a34a"></div>
+        </div>
+      </div>
+      <!-- rem -->
+      <div class="stage-row">
+        <div class="stage-header">
+          <span class="stage-name">REM</span>
+          <span class="stage-val">1h 22m</span>
+        </div>
+        <div class="stage-bar-bg">
+          <!-- 4920/25620 ≈ 19.2% -->
+          <div class="stage-bar-fill" style="width:19%;background:#15803d"></div>
+        </div>
+      </div>
+      <!-- light -->
+      <div class="stage-row">
+        <div class="stage-header">
+          <span class="stage-name">Light</span>
+          <span class="stage-val">4h 17m</span>
+        </div>
+        <div class="stage-bar-bg">
+          <!-- 15420/25620 ≈ 60.2% -->
+          <div class="stage-bar-fill" style="width:60%;background:#4ade8060"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sleep-stats">
+      <div class="stat-row">
+        <span class="stat-name">Awake</span>
+        <div class="stat-val-wrap">
+          <div class="dot dot-yellow"></div>
+          <span class="stat-val">38 min</span>
+        </div>
+      </div>
+      <div class="stat-row">
+        <span class="stat-name">Avg HR</span>
+        <div class="stat-val-wrap">
+          <div class="dot dot-green"></div>
+          <span class="stat-val">57.3 bpm</span>
+        </div>
+      </div>
+      <div class="stat-row">
+        <span class="stat-name">Resp.</span>
+        <div class="stat-val-wrap">
+          <div class="dot dot-green"></div>
+          <span class="stat-val">11.4 rpm</span>
+        </div>
+      </div>
+      <div class="stat-row">
+        <span class="stat-name">Bed Temp</span>
+        <div class="stat-val-wrap">
+          <div class="dot dot-yellow"></div>
+          <span class="stat-val">27.4°C</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /sleep-grid -->
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- RECOVERY                                       -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="section-label">Recovery</div>
+
+<div class="recovery-grid">
+
+  <!-- Readiness Ring -->
+  <div class="metric-card">
+    <div class="metric-card-title">Readiness</div>
+    <div style="position:relative;width:90px;height:90px;">
+      <svg width="90" height="90" viewBox="0 0 90 90" style="transform:rotate(-90deg)">
+        <circle cx="45" cy="45" r="38" fill="none" stroke="#ffffff0a" stroke-width="9"/>
+        <!-- 79/100 = 79% of 2π×38 ≈ 238.76 → 188.6 -->
+        <circle cx="45" cy="45" r="38" fill="none"
+          stroke="#22c55e" stroke-width="9"
+          stroke-linecap="round"
+          stroke-dasharray="188.6 238.76"/>
+      </svg>
+      <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+        <span style="font-size:26px;font-weight:800;color:#4ade80;line-height:1;letter-spacing:-1px">79</span>
+        <span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">/100</span>
+      </div>
+    </div>
+    <span class="pill pill-green">Good</span>
+  </div>
+
+  <!-- HRV -->
+  <div class="metric-card">
+    <div class="metric-card-title">HRV</div>
+    <div class="hrv-compare">
+      <div class="hrv-item">
+        <div class="hrv-src">Oura</div>
+        <div class="hrv-val" style="color:#818cf8">37</div>
+        <div class="hrv-unit">ms</div>
+      </div>
+      <div class="hrv-sep"></div>
+      <div class="hrv-item">
+        <div class="hrv-src">Eight</div>
+        <div class="hrv-val" style="color:#4ade80">42.8</div>
+        <div class="hrv-unit">ms</div>
+      </div>
+    </div>
+    <span class="pill pill-yellow">Moderate</span>
+  </div>
+
+</div><!-- /recovery-grid -->
+
+<!-- Readiness Contributors -->
+<div class="card">
+  <div class="card-title">Readiness Contributors</div>
+  <div class="contrib-list">
+
+    <div class="contrib-row">
+      <span class="contrib-name">Resting HR</span>
+      <div class="contrib-bar-bg">
+        <div class="contrib-bar-fill" style="width:98%;background:#22c55e"></div>
+      </div>
+      <span class="contrib-val" style="color:#4ade80">98</span>
+    </div>
+
+    <div class="contrib-row">
+      <span class="contrib-name">HRV Balance</span>
+      <div class="contrib-bar-bg">
+        <div class="contrib-bar-fill" style="width:88%;background:#22c55e"></div>
+      </div>
+      <span class="contrib-val" style="color:#4ade80">88</span>
+    </div>
+
+    <div class="contrib-row">
+      <span class="contrib-name">Activity Balance</span>
+      <div class="contrib-bar-bg">
+        <div class="contrib-bar-fill" style="width:85%;background:#22c55e"></div>
+      </div>
+      <span class="contrib-val" style="color:#4ade80">85</span>
+    </div>
+
+    <div class="contrib-row">
+      <span class="contrib-name">Sleep Balance</span>
+      <div class="contrib-bar-bg">
+        <div class="contrib-bar-fill" style="width:77%;background:#f59e0b"></div>
+      </div>
+      <span class="contrib-val" style="color:#fbbf24">77</span>
+    </div>
+
+    <div class="contrib-row">
+      <span class="contrib-name">Previous Day</span>
+      <div class="contrib-bar-bg">
+        <div class="contrib-bar-fill" style="width:76%;background:#f59e0b"></div>
+      </div>
+      <span class="contrib-val" style="color:#fbbf24">76</span>
+    </div>
+
+    <div class="contrib-row">
+      <span class="contrib-name">Recovery Index</span>
+      <div class="contrib-bar-bg">
+        <div class="contrib-bar-fill" style="width:59%;background:#ef4444"></div>
+      </div>
+      <span class="contrib-val" style="color:#f87171">59</span>
+    </div>
+
+  </div>
+</div><!-- /card -->
+
+<!-- Vitals row -->
+<div class="card">
+  <div class="card-title">Overnight Vitals (Oura)</div>
+  <div class="vitals-row">
+    <div class="vital-item">
+      <span class="vital-val" style="color:#818cf8">57.3</span>
+      <span class="vital-unit">bpm</span>
+      <span class="vital-label">Avg HR</span>
+    </div>
+    <div class="vital-item">
+      <span class="vital-val" style="color:#a5b4fc">11.8</span>
+      <span class="vital-unit">rpm</span>
+      <span class="vital-label">Breath</span>
+    </div>
+    <div class="vital-item">
+      <span class="vital-val" style="color:#4ade80">+0.19</span>
+      <span class="vital-unit">°C</span>
+      <span class="vital-label">Body Temp</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- BODY                                           -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="section-label">Body (Withings)</div>
+
+<div class="card">
+  <div class="body-grid">
+    <div class="body-metric">
+      <div class="body-val" style="color:#f59e0b">94.4</div>
+      <div class="body-unit">kg</div>
+      <div class="body-label">Weight</div>
+    </div>
+    <div class="body-metric">
+      <div class="body-val" style="color:#f59e0b">24.9</div>
+      <div class="body-unit">%</div>
+      <div class="body-label">Body Fat</div>
+    </div>
+    <div class="body-metric">
+      <div class="body-val" style="color:#4ade80">70.9</div>
+      <div class="body-unit">kg</div>
+      <div class="body-label">Fat-Free</div>
+    </div>
+  </div>
+
+  <!-- Fat bar -->
+  <div style="margin-top:14px">
+    <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+      <span style="font-size:11px;color:var(--muted)">Fat-Free Mass</span>
+      <span style="font-size:11px;color:var(--muted)">Body Fat</span>
+    </div>
+    <div style="height:8px;border-radius:99px;background:var(--card2);border:1px solid var(--border);overflow:hidden;display:flex">
+      <!-- 70.92/94.41 ≈ 75.1% -->
+      <div style="width:75.1%;background:linear-gradient(90deg,#22c55e,#4ade80);border-radius:99px 0 0 99px"></div>
+      <div style="flex:1;background:linear-gradient(90deg,#f59e0b,#fbbf24);border-radius:0 99px 99px 0"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:4px">
+      <span style="font-size:10px;color:#4ade80;font-weight:600">75.1%</span>
+      <span style="font-size:10px;color:#fbbf24;font-weight:600">24.9%</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── Footer ─────────────────────────────────── -->
+<div class="footer">
+  🤵 Alfred Health Dashboard &nbsp;·&nbsp; April 2, 2026
+</div>
+
+<script>
+  // Animate bars on load
+  document.addEventListener('DOMContentLoaded', () => {
+    const fills = document.querySelectorAll('.stage-bar-fill, .contrib-bar-fill');
+    fills.forEach(el => {
+      const w = el.style.width;
+      el.style.width = '0%';
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          el.style.transition = 'width 0.8s cubic-bezier(.4,0,.2,1)';
+          el.style.width = w;
+        });
+      });
+    });
+
+    // Animate SVG rings
+    const circles = document.querySelectorAll('circle[stroke-dasharray]');
+    circles.forEach(c => {
+      const da = c.getAttribute('stroke-dasharray');
+      const parts = da.split(' ');
+      const fill = parseFloat(parts[0]);
+      const total = parseFloat(parts[1]);
+      c.setAttribute('stroke-dasharray', `0 ${total}`);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          c.style.transition = 'stroke-dasharray 1s cubic-bezier(.4,0,.2,1)';
+          c.setAttribute('stroke-dasharray', `${fill} ${total}`);
+        });
+      });
+    });
+  });
+</script>
+</body>
+</html>

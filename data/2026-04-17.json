@@ -1,0 +1,27 @@
+{
+  "date": "2026-04-17",
+  "oura": {
+    "daily_sleep": null,
+    "daily_readiness": null,
+    "daily_activity": null,
+    "vo2_max": null,
+    "cardiovascular_age": null,
+    "resilience": null,
+    "stress": null,
+    "spo2": null,
+    "sleep": [],
+    "avg_rmssd": null,
+    "avg_hr": null,
+    "avg_breath": null,
+    "total_sleep_duration": null
+  },
+  "garmin": null,
+  "withings": null,
+  "morpheus": null,
+  "eightsleep": null,
+  "computed": {
+    "overall_score": null,
+    "advice": "Insufficient data for scoring.",
+    "oura_synced": false
+  }
+}

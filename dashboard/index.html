@@ -234,6 +234,23 @@
       font-size: 12px;
     }
 
+    .kpi-badge-row {
+      margin-top: 10px;
+    }
+
+    .kpi-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(79, 156, 249, 0.25);
+      background: rgba(79, 156, 249, 0.12);
+      color: #cfe3ff;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
     .metric-list {
       display: flex;
       flex-direction: column;
@@ -594,6 +611,9 @@
               <div class="kpi-label">Garmin Body Battery Max</div>
               <div class="kpi-value garmin" id="body-battery-kpi">—</div>
               <div class="kpi-note" id="body-battery-note">—</div>
+              <div class="kpi-badge-row" id="body-battery-training-row" hidden>
+                <span class="kpi-badge" id="body-battery-training-badge">Training Readiness: —</span>
+              </div>
             </div>
             <div class="kpi">
               <div class="kpi-label">Garmin HRV</div>
@@ -615,7 +635,7 @@
             </div>
             <div class="card-updated" data-updated-group="core">Last updated —</div>
           </div>
-          <div class="chart-wrap short">
+          <div class="chart-wrap short" data-chart-wrap="chart-hrv">
             <canvas id="chart-hrv"></canvas>
           </div>
         </article>
@@ -627,7 +647,7 @@
             </div>
             <div class="card-updated" data-updated-group="core">Last updated —</div>
           </div>
-          <div class="chart-wrap short">
+          <div class="chart-wrap short" data-chart-wrap="chart-readiness">
             <canvas id="chart-readiness"></canvas>
           </div>
         </article>
@@ -1012,7 +1032,7 @@
         remPercent: deriveSleepStagePercent(rem, total),
         efficiency: record?.oura?.daily_sleep?.contributors?.efficiency ?? session?.efficiency ?? null,
         readiness: record?.oura?.daily_readiness?.score ?? null,
-        hrv: record?.oura?.avg_rmssd ?? session?.average_hrv ?? null,
+        hrv: record?.oura?.avg_rmssd ?? record?.oura?.hrv ?? session?.average_hrv ?? null,
       };
     }
 
@@ -1050,7 +1070,19 @@
             : null
         ),
         readiness: null,
-        hrv: point?.hrv ?? null,
+        hrv: point?.hrv ?? point?.avg_hrv ?? point?.hrv_rmssd ?? null,
+      };
+    }
+
+    function buildLineDataset(label, data, borderColor) {
+      if (!Array.isArray(data) || !data.some(value => value !== null && value !== undefined)) {
+        return null;
+      }
+      return {
+        label,
+        data,
+        borderColor,
+        backgroundColor: 'transparent',
       };
     }
 
@@ -1423,77 +1455,68 @@
 
     function renderRecoverySection(today, series) {
       const todayGarminPoint = state.garminTrends[state.garminTrends.length - 1] || null;
+      const latestEightSleepPoint = state.eightSleepHistory[state.eightSleepHistory.length - 1] || null;
+      const bodyBatteryTrainingRow = $('body-battery-training-row');
+      const trainingReadiness = todayGarminPoint?.training_readiness;
+      const hrvDatasets = [
+        buildLineDataset('Garmin HRV', series.map(day => day.garmin.hrv), PALETTE.garmin),
+        buildLineDataset('Oura HRV', series.map(day => day.oura.hrv), PALETTE.oura),
+        buildLineDataset('Eight Sleep HRV', series.map(day => day.eight.hrv), PALETTE.eight),
+      ].filter(Boolean);
+      const readinessDatasets = [
+        buildLineDataset('Oura Readiness', series.map(day => day.oura.readiness), PALETTE.oura),
+        buildLineDataset('Garmin Body Battery Max', series.map(day => day.garmin.readiness), PALETTE.garmin),
+      ].filter(Boolean);
+
       $('readiness-kpi').textContent = dash(today?.oura?.daily_readiness?.score, item => Math.round(item));
       $('readiness-note').textContent = `HRV balance ${dash(today?.oura?.daily_readiness?.contributors?.hrv_balance)}`;
       $('body-battery-kpi').textContent = dash(todayGarminPoint?.body_battery_max, item => Math.round(item));
-      $('body-battery-note').textContent = `Training readiness ${dash(todayGarminPoint?.training_readiness)}`;
-      $('garmin-hrv-kpi').textContent = dash(today?.garmin?.hrv?.avgOvernightHrv, item => `${Number(item).toFixed(1)} ms`);
-      $('garmin-hrv-note').textContent = dash(today?.garmin?.hrv?.hrvStatus);
-      $('eight-hrv-kpi').textContent = dash(today?.eightsleep?.hrv, item => `${Number(item).toFixed(1)} ms`);
-      $('eight-hrv-note').textContent = `Resp. ${dash(today?.eightsleep?.respiratory_rate, item => `${Number(item).toFixed(1)} rpm`)}`;
+      $('body-battery-note').textContent = 'Peak today';
+      bodyBatteryTrainingRow.hidden = trainingReadiness == null;
+      $('body-battery-training-badge').textContent = `Training Readiness: ${dash(trainingReadiness, item => Math.round(item))}`;
+      $('garmin-hrv-kpi').textContent = dash(todayGarminPoint?.hrv_overnight, item => `${Number(item).toFixed(1)} ms`);
+      $('garmin-hrv-note').textContent = `Weekly avg ${dash(todayGarminPoint?.hrv_weekly_avg, item => `${Number(item).toFixed(1)} ms`)} • ${dash(todayGarminPoint?.hrv_status)}`;
+      $('eight-hrv-kpi').textContent = dash(getEightMetrics(latestEightSleepPoint).hrv, item => `${Number(item).toFixed(1)} ms`);
+      $('eight-hrv-note').textContent = latestEightSleepPoint?.date ? `Latest ${formatDateLabel(latestEightSleepPoint.date)}` : 'Latest overnight';
 
-      renderChart('chart-hrv', {
-        type: 'line',
-        data: {
-          labels: series.map(day => formatDateLabel(day.date)),
-          datasets: [
-            {
-              label: 'Garmin',
-              data: series.map(day => day.garmin.hrv),
-              borderColor: PALETTE.garmin,
-              backgroundColor: 'transparent',
-            },
-            {
-              label: 'Oura',
-              data: series.map(day => day.oura.hrv),
-              borderColor: PALETTE.oura,
-              backgroundColor: 'transparent',
-            },
-            {
-              label: 'Eight Sleep',
-              data: series.map(day => day.eight.hrv),
-              borderColor: PALETTE.eight,
-              backgroundColor: 'transparent',
-            },
-          ],
-        },
-        options: chartOptions({
-          scales: {
-            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { maxTicksLimit: 8, maxRotation: 0 } },
-            y: {
-              grid: { color: 'rgba(255,255,255,0.06)' },
-              ticks: { callback: value => `${value} ms` },
-            },
+      if (!hrvDatasets.length) {
+        setChartEmptyState('chart-hrv', 'No HRV data available for the last 30 days.');
+      } else {
+        renderChart('chart-hrv', {
+          type: 'line',
+          data: {
+            labels: series.map(day => formatDateLabel(day.date)),
+            datasets: hrvDatasets,
           },
-        }),
-      });
+          options: chartOptions({
+            scales: {
+              x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { maxTicksLimit: 8, maxRotation: 0 } },
+              y: {
+                grid: { color: 'rgba(255,255,255,0.06)' },
+                ticks: { callback: value => `${value} ms` },
+              },
+            },
+          }),
+        });
+      }
 
-      renderChart('chart-readiness', {
-        type: 'line',
-        data: {
-          labels: series.map(day => formatDateLabel(day.date)),
-          datasets: [
-            {
-              label: 'Oura Readiness',
-              data: series.map(day => day.oura.readiness),
-              borderColor: PALETTE.oura,
-              backgroundColor: 'transparent',
-            },
-            {
-              label: 'Garmin Body Battery Max',
-              data: series.map(day => day.garmin.readiness),
-              borderColor: PALETTE.garmin,
-              backgroundColor: 'transparent',
-            },
-          ],
-        },
-        options: chartOptions({
-          scales: {
-            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { maxTicksLimit: 8, maxRotation: 0 } },
-            y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.06)' } },
+      if (!readinessDatasets.length) {
+        setChartEmptyState('chart-readiness', 'No readiness data available for the last 30 days.');
+      } else {
+        renderChart('chart-readiness', {
+          type: 'line',
+          data: {
+            labels: series.map(day => formatDateLabel(day.date)),
+            datasets: readinessDatasets,
           },
-        }),
-      });
+          options: chartOptions({
+            scales: {
+              x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { maxTicksLimit: 8, maxRotation: 0 } },
+              y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.06)' } },
+            },
+          }),
+        });
+      }
     }
 
     function renderBodySection(today) {

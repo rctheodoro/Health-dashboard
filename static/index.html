@@ -1,0 +1,2025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Alfred Health Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121933;
+      --panel-alt: #182244;
+      --panel-soft: rgba(255, 255, 255, 0.04);
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #edf2ff;
+      --muted: #93a1c4;
+      --subtle: #627196;
+      --accent: #dbe4ff;
+      --garmin: #4f9cf9;
+      --oura: #a78bfa;
+      --eight: #fb923c;
+      --green: #34d399;
+      --yellow: #fbbf24;
+      --red: #f87171;
+      --shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(79, 156, 249, 0.18), transparent 26%),
+        radial-gradient(circle at top right, rgba(167, 139, 250, 0.16), transparent 24%),
+        linear-gradient(180deg, #0b1020 0%, #09101c 100%);
+      color: var(--text);
+      font-family: "SF Pro Display", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.45;
+    }
+
+    .shell {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 28px 20px 120px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.7fr 0.9fr;
+      gap: 18px;
+      margin-bottom: 28px;
+    }
+
+    .hero-panel,
+    .card {
+      background: linear-gradient(180deg, rgba(24, 34, 68, 0.94), rgba(18, 25, 51, 0.94));
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+
+    .hero-panel {
+      padding: 26px;
+    }
+
+    .hero-main {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .eyebrow {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--muted);
+    }
+
+    .hero-title {
+      font-size: clamp(28px, 5vw, 44px);
+      line-height: 1;
+      letter-spacing: -0.05em;
+      max-width: 10ch;
+    }
+
+    .hero-subtitle {
+      color: var(--muted);
+      max-width: 64ch;
+      font-size: 14px;
+    }
+
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--accent);
+      font-size: 12px;
+    }
+
+    .hero-score {
+      padding: 26px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .score-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--muted);
+    }
+
+    .score-value {
+      font-size: 78px;
+      line-height: 0.92;
+      letter-spacing: -0.07em;
+      font-weight: 800;
+    }
+
+    .score-good { color: var(--green); }
+    .score-mid { color: var(--yellow); }
+    .score-low { color: var(--red); }
+
+    .score-advice {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .section {
+      margin-top: 28px;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    .section-copy h2 {
+      font-size: 24px;
+      letter-spacing: -0.03em;
+    }
+
+    .section-copy p {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .card {
+      padding: 18px;
+      min-width: 0;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .card-title {
+      font-size: 17px;
+      letter-spacing: -0.02em;
+    }
+
+    .card-subtitle {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .card-updated {
+      font-size: 11px;
+      color: var(--subtle);
+      white-space: nowrap;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .kpi {
+      padding: 14px;
+      border-radius: 16px;
+      background: var(--panel-soft);
+      border: 1px solid var(--border);
+    }
+
+    .kpi-label {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .kpi-value {
+      font-size: 32px;
+      line-height: 1;
+      letter-spacing: -0.05em;
+      margin-top: 10px;
+      font-weight: 750;
+    }
+
+    .kpi-note {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .kpi-badge-row {
+      margin-top: 10px;
+    }
+
+    .kpi-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(79, 156, 249, 0.25);
+      background: rgba(79, 156, 249, 0.12);
+      color: #cfe3ff;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .metric-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .metric-row:last-child {
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+
+    .metric-label { color: var(--muted); }
+    .metric-value { font-weight: 650; }
+
+    .table-metric-label {
+      font-weight: 700;
+    }
+
+    .table-muted {
+      color: var(--muted);
+    }
+
+    .sleep-average-cell {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .kpi-delta-line {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .range-controls {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .range-btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+    }
+
+    .range-btn:hover {
+      color: var(--accent);
+      border-color: rgba(255, 255, 255, 0.16);
+    }
+
+    .range-btn.active {
+      color: #fff7ed;
+      background: #f97316;
+      border-color: #f97316;
+    }
+
+    .device-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+
+    .garmin { color: var(--garmin); }
+    .oura { color: var(--oura); }
+    .eight { color: var(--eight); }
+
+    .table-wrap {
+      overflow: auto;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+    }
+
+    .table-wrap.max-300 {
+      max-height: 300px;
+    }
+
+    .table-wrap.max-400 {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 640px;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    th,
+    td {
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    th {
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 11px;
+      background: rgba(255, 255, 255, 0.03);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    .sleep-device-row td:first-child {
+      font-weight: 700;
+    }
+
+    .sleep-device-row.garmin-row {
+      background: linear-gradient(90deg, rgba(79, 156, 249, 0.14), rgba(79, 156, 249, 0.05));
+    }
+
+    .sleep-device-row.oura-row {
+      background: linear-gradient(90deg, rgba(167, 139, 250, 0.14), rgba(167, 139, 250, 0.05));
+    }
+
+    .sleep-device-row.eight-row {
+      background: linear-gradient(90deg, rgba(251, 146, 60, 0.14), rgba(251, 146, 60, 0.05));
+    }
+
+    .sleep-history-table tbody tr:nth-child(even) {
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .chart-wrap {
+      position: relative;
+      height: 280px;
+      border-radius: 16px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+      padding: 12px;
+    }
+
+    .chart-wrap.short { height: 240px; }
+
+    .empty-state,
+    .loading-state {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-height: 120px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+      padding: 20px;
+      border: 1px dashed rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .inline-note {
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .insight-output {
+      margin-top: 14px;
+      padding: 16px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.03);
+      white-space: pre-wrap;
+      color: var(--accent);
+      min-height: 120px;
+    }
+
+    .insight-output.is-empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+    }
+
+    .insight-output.is-info {
+      color: var(--text);
+      border-color: rgba(255, 255, 255, 0.08);
+      background: linear-gradient(135deg, rgba(79, 156, 249, 0.1), rgba(167, 139, 250, 0.08));
+    }
+
+    .btn {
+      appearance: none;
+      border: none;
+      border-radius: 999px;
+      padding: 11px 16px;
+      background: linear-gradient(135deg, var(--garmin), var(--oura));
+      color: white;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .btn:hover { opacity: 0.9; }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      border-top-color: currentColor;
+      animation: spin 0.9s linear infinite;
+      flex: 0 0 auto;
+    }
+
+    .status-bar {
+      position: fixed;
+      left: 18px;
+      right: 18px;
+      bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 16px;
+      border-radius: 999px;
+      background: rgba(10, 16, 32, 0.92);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(14px);
+      box-shadow: var(--shadow);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--yellow);
+    }
+
+    .status-action {
+      margin-left: auto;
+      color: var(--accent);
+      cursor: pointer;
+    }
+
+    .hidden { display: none !important; }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 1080px) {
+      .hero,
+      .grid-2,
+      .grid-3 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .shell {
+        padding: 18px 14px 110px;
+      }
+
+      .hero-panel,
+      .hero-score,
+      .card {
+        padding: 16px;
+      }
+
+      .score-value {
+        font-size: 60px;
+      }
+
+      .kpi-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .status-bar {
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+        flex-wrap: wrap;
+        border-radius: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="hero">
+      <div class="hero-panel hero-main">
+        <div class="eyebrow">Alfred Health Dashboard</div>
+        <div>
+          <h1 class="hero-title">Unified recovery and training view.</h1>
+          <p class="hero-subtitle" id="hero-subtitle">Fetching Oura, Garmin, Eight Sleep, and Withings data.</p>
+        </div>
+        <div class="hero-meta">
+          <span class="pill"><span class="device-dot" style="background:var(--garmin)"></span>Garmin</span>
+          <span class="pill"><span class="device-dot" style="background:var(--oura)"></span>Oura</span>
+          <span class="pill"><span class="device-dot" style="background:var(--eight)"></span>Eight Sleep</span>
+          <span class="pill" id="hero-date">Loading date…</span>
+        </div>
+      </div>
+      <div class="hero-panel hero-score">
+        <div>
+          <div class="score-label">Alfred Score</div>
+          <div class="score-value" id="alfred-score">—</div>
+        </div>
+        <div class="score-advice" id="alfred-advice">Loading live summary…</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div class="section-copy">
+          <div class="eyebrow">Today + 30 Days</div>
+          <h2>Sleep</h2>
+          <p>Cross-device comparison, nightly history, and score trends.</p>
+        </div>
+      </div>
+      <div class="grid grid-2">
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">Sleep Quality</h3>
+              <div class="card-subtitle">Cross-device table with averaged nightly values and historical context</div>
+            </div>
+            <div class="card-updated" data-updated-group="core">Last updated —</div>
+          </div>
+          <div id="sleep-comparison-panel"><div class="loading">Loading...</div></div>
+        </article>
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">Sleep Score Trend</h3>
+              <div class="card-subtitle">Oura, Garmin, and Eight Sleep across 30 days</div>
+            </div>
+            <div class="card-updated" data-updated-group="core">Last updated —</div>
+          </div>
+          <div class="chart-wrap short" data-chart-wrap="chart-sleep-score">
+            <canvas id="chart-sleep-score"></canvas>
+          </div>
+        </article>
+      </div>
+      <div class="card" style="margin-top:18px;">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title">30-Day Sleep History</h3>
+            <div class="card-subtitle">Newest first with total and deep sleep across all three devices</div>
+          </div>
+          <div class="card-updated" data-updated-group="core">Last updated —</div>
+        </div>
+        <div id="sleep-history"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div class="section-copy">
+          <div class="eyebrow">Recovery</div>
+          <h2>HRV and Readiness</h2>
+          <p>Oura readiness and Garmin Body Battery together, with HRV lines from all available devices.</p>
+        </div>
+      </div>
+      <div class="grid grid-3">
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">Recovery Snapshot</h3>
+              <div class="card-subtitle">Latest readiness, body battery, and overnight state</div>
+            </div>
+            <div class="card-updated" data-updated-group="core">Last updated —</div>
+          </div>
+          <div class="kpi-grid">
+            <div class="kpi">
+              <div class="kpi-label">Oura Readiness</div>
+              <div class="kpi-value oura" id="readiness-kpi">—</div>
+              <div class="kpi-note" id="readiness-note">—</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">Garmin Body Battery Max</div>
+              <div class="kpi-value garmin" id="body-battery-kpi">—</div>
+              <div class="kpi-note" id="body-battery-note">—</div>
+              <div class="kpi-badge-row" id="body-battery-training-row" hidden>
+                <span class="kpi-badge" id="body-battery-training-badge">Training Readiness: —</span>
+              </div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">Garmin HRV</div>
+              <div class="kpi-value garmin" id="garmin-hrv-kpi">—</div>
+              <div class="kpi-note" id="garmin-hrv-note">—</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">Eight Sleep HRV</div>
+              <div class="kpi-value eight" id="eight-hrv-kpi">—</div>
+              <div class="kpi-note" id="eight-hrv-note">—</div>
+            </div>
+          </div>
+        </article>
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">HRV Comparison</h3>
+              <div class="card-subtitle">Overnight RMSSD lines from Oura, Garmin, and Eight Sleep</div>
+            </div>
+            <div class="card-updated" data-updated-group="core">Last updated —</div>
+          </div>
+          <div class="chart-wrap short" data-chart-wrap="chart-hrv">
+            <canvas id="chart-hrv"></canvas>
+          </div>
+        </article>
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">Readiness Trend</h3>
+              <div class="card-subtitle">Oura readiness and Garmin Body Battery Max over 30 days</div>
+            </div>
+            <div class="card-updated" data-updated-group="core">Last updated —</div>
+          </div>
+          <div class="chart-wrap short" data-chart-wrap="chart-readiness">
+            <canvas id="chart-readiness"></canvas>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div class="section-copy">
+          <div class="eyebrow">Body Composition</div>
+          <h2>Weight and Body Fat</h2>
+          <p>Recent Withings measurements with last-recorded context when today is missing.</p>
+        </div>
+      </div>
+      <div class="grid grid-2">
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">Weight Snapshot</h3>
+              <div class="card-subtitle">Latest recorded body composition</div>
+            </div>
+            <div class="card-updated" data-updated-group="core">Last updated —</div>
+          </div>
+          <div class="kpi-grid">
+            <div class="kpi">
+              <div class="kpi-label">Weight</div>
+              <div class="kpi-value" id="weight-kpi">—</div>
+              <div class="kpi-delta-line" id="weight-deltas">—</div>
+              <div class="kpi-note" id="weight-note">—</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">Body Fat</div>
+              <div class="kpi-value" id="body-fat-kpi">—</div>
+              <div class="kpi-delta-line" id="body-fat-deltas">—</div>
+              <div class="kpi-note">Percent body fat</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">Fat Mass</div>
+              <div class="kpi-value" id="fat-mass-kpi">—</div>
+              <div class="kpi-note">Absolute fat mass</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">Muscle Mass</div>
+              <div class="kpi-value" id="muscle-mass-kpi">—</div>
+              <div class="kpi-note">Latest muscle estimate</div>
+            </div>
+          </div>
+        </article>
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">Weight Trend</h3>
+              <div class="card-subtitle">Weight plus body fat on a secondary axis</div>
+            </div>
+            <div class="card-updated" data-updated-group="core">Last updated —</div>
+          </div>
+          <div class="range-controls" id="weight-range-controls">
+            <button type="button" class="range-btn" data-weight-range="ytd">YTD</button>
+            <button type="button" class="range-btn" data-weight-range="1y">1Y</button>
+            <button type="button" class="range-btn" data-weight-range="3y">3Y</button>
+            <button type="button" class="range-btn" data-weight-range="5y">5Y</button>
+            <button type="button" class="range-btn active" data-weight-range="max">Max</button>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart-weight"></canvas>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div class="section-copy">
+          <div class="eyebrow">Garmin Only</div>
+          <h2>Activity</h2>
+          <p>Recent sessions using Garmin activities only.</p>
+        </div>
+      </div>
+      <article class="card">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title">Last 30 Days of Activities</h3>
+            <div class="card-subtitle">Activity type, duration, and calories</div>
+          </div>
+          <div class="card-updated" data-updated-group="core">Last updated —</div>
+        </div>
+        <div id="activity-table"></div>
+      </article>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div class="section-copy">
+          <div class="eyebrow">30 Days</div>
+          <h2>Trends</h2>
+          <p>Garmin baselines plus recent training load context.</p>
+        </div>
+      </div>
+      <div class="grid grid-2">
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">Resting Heart Rate</h3>
+              <div class="card-subtitle">Garmin daily resting heart rate</div>
+            </div>
+            <div class="card-updated" data-updated-group="core">Last updated —</div>
+          </div>
+          <div class="chart-wrap short">
+            <canvas id="chart-rhr"></canvas>
+          </div>
+        </article>
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">Intensity Minutes</h3>
+              <div class="card-subtitle">Moderate and vigorous training load</div>
+            </div>
+            <div class="card-updated" data-updated-group="core">Last updated —</div>
+          </div>
+          <div class="chart-wrap short">
+            <canvas id="chart-intensity"></canvas>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div class="section-copy">
+          <div class="eyebrow">Long Term</div>
+          <h2>Historical Trends</h2>
+          <p>Biweekly Garmin aggregates across the available history window.</p>
+        </div>
+      </div>
+      <div class="grid grid-3">
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">Resting HR</h3>
+              <div class="card-subtitle">Biweekly averages</div>
+            </div>
+            <div class="card-updated" data-updated-group="longterm">Last updated —</div>
+          </div>
+          <div class="chart-wrap short">
+            <canvas id="chart-longterm-rhr"></canvas>
+          </div>
+        </article>
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">Sleep Score</h3>
+              <div class="card-subtitle">Biweekly averages</div>
+            </div>
+            <div class="card-updated" data-updated-group="longterm">Last updated —</div>
+          </div>
+          <div class="chart-wrap short">
+            <canvas id="chart-longterm-sleep"></canvas>
+          </div>
+        </article>
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">HRV</h3>
+              <div class="card-subtitle">Biweekly overnight averages</div>
+            </div>
+            <div class="card-updated" data-updated-group="longterm">Last updated —</div>
+          </div>
+          <div class="chart-wrap short">
+            <canvas id="chart-longterm-hrv"></canvas>
+          </div>
+        </article>
+      </div>
+      <div class="inline-note hidden" id="longterm-message"></div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div class="section-copy">
+          <div class="eyebrow">AI</div>
+          <h2>Health Insights</h2>
+          <p>Local LLM summary of the last 30 Garmin days.</p>
+        </div>
+      </div>
+      <article class="card">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title">AI Health Insights</h3>
+            <div class="card-subtitle">Generated locally with Ollama</div>
+          </div>
+          <div class="card-updated" id="insights-timestamp">Last updated —</div>
+        </div>
+        <button class="btn" id="btn-analyze" type="button">Analyze Last 30 Days</button>
+        <div class="loading-state hidden" id="insights-loading" style="margin-top:14px;">
+          <span class="spinner"></span>
+          <span>Analyzing with Ollama…</span>
+        </div>
+        <div class="insight-output is-empty" id="insights-output">Run an analysis to generate recommendations.</div>
+      </article>
+    </section>
+  </div>
+
+  <div class="status-bar">
+    <span class="status-dot" id="status-dot"></span>
+    <span id="status-text">Loading dashboard…</span>
+    <span id="status-time">—</span>
+    <span class="status-action" onclick="refreshDashboard()">Refresh</span>
+  </div>
+
+  <script>
+    const PALETTE = { garmin: "#4f9cf9", oura: "#a78bfa", eight: "#fb923c", green: "#34d399", yellow: "#fbbf24", red: "#f87171" };
+    const CHART_THEME = {
+      grid: 'rgba(255,255,255,0.08)',
+      text: '#93a1c4',
+    };
+
+    const state = {
+      historyData: [],
+      todayData: null,
+      garminTrends: [],
+      garminActivities: [],
+      withingsHistory: [],
+      eightSleepHistory: [],
+      weightRange: 'max',
+      longterm: { rows: [], message: null },
+      fetchedAt: null,
+      longtermFetchedAt: null,
+    };
+
+    const charts = {};
+
+    Chart.defaults.color = CHART_THEME.text;
+    Chart.defaults.borderColor = CHART_THEME.grid;
+    Chart.defaults.font.family = '"SF Pro Display", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif';
+
+    function $(id) {
+      return document.getElementById(id);
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function dash(value, formatter) {
+      if (value === null || value === undefined || value === '') return '—';
+      return formatter ? formatter(value) : String(value);
+    }
+
+    function formatScore(value) {
+      return dash(value, item => `${Math.round(item)}`);
+    }
+
+    function formatDuration(seconds) {
+      if (seconds === null || seconds === undefined) return '—';
+      const total = Math.round(Number(seconds));
+      if (!Number.isFinite(total) || total <= 0) return '—';
+      const hours = Math.floor(total / 3600);
+      const minutes = Math.floor((total % 3600) / 60);
+      return hours > 0 ? `${hours}h ${String(minutes).padStart(2, '0')}m` : `${minutes}m`;
+    }
+
+    function formatSleepDuration(seconds) {
+      if (seconds === null || seconds === undefined) return '—';
+      const total = Math.round(Number(seconds));
+      if (!Number.isFinite(total) || total <= 0) return '—';
+      const hours = Math.floor(total / 3600);
+      const minutes = Math.floor((total % 3600) / 60);
+      return `${hours}:${String(minutes).padStart(2, '0')}`;
+    }
+
+    function formatActivityDuration(seconds) {
+      if (seconds === null || seconds === undefined) return '—';
+      const total = Math.round(Number(seconds));
+      if (!Number.isFinite(total) || total <= 0) return '—';
+      const hours = Math.floor(total / 3600);
+      const minutes = Math.floor((total % 3600) / 60);
+      return `${hours}h ${minutes}m`;
+    }
+
+    function formatMs(value) {
+      return dash(value, item => `${Number(item).toFixed(1)} ms`);
+    }
+
+    function formatPercent(value) {
+      return dash(value, item => `${Number(item).toFixed(1)}%`);
+    }
+
+    function deriveSleepStagePercent(stageSeconds, totalSeconds) {
+      if (stageSeconds === null || stageSeconds === undefined || totalSeconds === null || totalSeconds === undefined) return null;
+      const stage = Number(stageSeconds);
+      const total = Number(totalSeconds);
+      if (!Number.isFinite(stage) || !Number.isFinite(total) || total <= 0 || stage < 0) return null;
+      return (stage / total) * 100;
+    }
+
+    function formatKcal(value) {
+      return dash(value, item => `${Math.round(Number(item))} kcal`);
+    }
+
+    function formatNumber(value) {
+      return dash(value, item => Number(item).toLocaleString());
+    }
+
+    function formatWeight(value) {
+      return dash(value, item => `${Number(item).toFixed(1)} kg`);
+    }
+
+    function formatBodyFat(value) {
+      return dash(value, item => `${Number(item).toFixed(1)}%`);
+    }
+
+    function formatSignedWeightDelta(value) {
+      if (value === null || value === undefined || !Number.isFinite(Number(value))) return '—';
+      const numeric = Number(value);
+      const arrow = numeric >= 0 ? '▲' : '▼';
+      const sign = numeric >= 0 ? '+' : '-';
+      return `${arrow} ${sign}${Math.abs(numeric).toFixed(1)} kg`;
+    }
+
+    function formatSignedBodyFatDelta(value) {
+      if (value === null || value === undefined || !Number.isFinite(Number(value))) return '—';
+      const numeric = Number(value);
+      const arrow = numeric >= 0 ? '▲' : '▼';
+      const sign = numeric >= 0 ? '+' : '-';
+      return `${arrow} ${sign}${Math.abs(numeric).toFixed(1)}%`;
+    }
+
+    function formatVsAverageDelta(currentValue, averageValue, formatter) {
+      if (!Number.isFinite(Number(currentValue)) || !Number.isFinite(Number(averageValue))) return '—';
+      const delta = Number(currentValue) - Number(averageValue);
+      if (Math.abs(delta) < 0.01) return '• 0.0';
+      const arrow = delta >= 0 ? '▲' : '▼';
+      const sign = delta >= 0 ? '+' : '-';
+      return `${arrow} ${sign}${formatter(Math.abs(delta))}`;
+    }
+
+    function formatDateLabel(dateStr) {
+      if (!dateStr) return '—';
+      const value = new Date(`${dateStr}T00:00:00`);
+      return value.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    function formatLongDate(dateStr) {
+      if (!dateStr) return '—';
+      const value = new Date(`${dateStr}T00:00:00`);
+      return value.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    }
+
+    function timestampLabel(dateValue) {
+      if (!dateValue) return '—';
+      return new Date(dateValue).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+    }
+
+    function setStatus(text, color) {
+      $('status-text').textContent = text;
+      if (color) $('status-dot').style.background = color;
+      $('status-time').textContent = state.fetchedAt ? `Updated ${timestampLabel(state.fetchedAt)}` : '—';
+    }
+
+    function setUpdated(group, value) {
+      const label = value ? `Last updated ${timestampLabel(value)}` : 'Last updated —';
+      document.querySelectorAll(`[data-updated-group="${group}"]`).forEach(element => {
+        element.textContent = label;
+      });
+    }
+
+    function loadingMarkup(message) {
+      return `<div class="loading-state"><span class="spinner"></span><span>${escapeHtml(message)}</span></div>`;
+    }
+
+    function emptyMarkup(message) {
+      return `<div class="empty-state">${escapeHtml(message)}</div>`;
+    }
+
+    function ollamaInfoMarkup() {
+      return '<div style="background:#1e3a5f;border:1px solid #4f9cf9;border-radius:8px;padding:12px;color:#93c5fd">🧠 AI insights require Ollama running locally. Start with: <code>ollama serve</code></div>';
+    }
+
+    function getLongSleep(record) {
+      const sessions = record?.oura?.sleep;
+      if (!Array.isArray(sessions)) return null;
+      return sessions.find(session => session?.type === 'long_sleep') || sessions[0] || null;
+    }
+
+    function getOuraMetrics(record) {
+      const session = getLongSleep(record);
+      const total = record?.oura?.total_sleep_duration ?? session?.total_sleep_duration ?? null;
+      const deep = session?.deep_sleep_duration ?? null;
+      const rem = session?.rem_sleep_duration ?? null;
+      return {
+        score: record?.oura?.daily_sleep?.score ?? null,
+        total,
+        deep,
+        rem,
+        deepPercent: deriveSleepStagePercent(deep, total),
+        remPercent: deriveSleepStagePercent(rem, total),
+        efficiency: record?.oura?.daily_sleep?.contributors?.efficiency ?? session?.efficiency ?? null,
+        readiness: record?.oura?.daily_readiness?.score ?? null,
+        hrv: record?.oura?.avg_rmssd ?? record?.oura?.hrv ?? session?.average_hrv ?? null,
+      };
+    }
+
+    function getGarminMetrics(point) {
+      const total = point?.sleep_time_seconds ?? point?.sleep?.total_sleep_s ?? null;
+      const deep = point?.deep_sleep_seconds ?? point?.sleep?.deep_sleep_s ?? null;
+      const rem = point?.rem_sleep_seconds ?? point?.sleep?.rem_sleep_s ?? null;
+      return {
+        score: point?.sleep_score ?? point?.sleep?.score ?? null,
+        total,
+        deep,
+        rem,
+        deepPercent: deriveSleepStagePercent(deep, total),
+        remPercent: deriveSleepStagePercent(rem, total),
+        efficiency: point?.sleep_efficiency ?? null,
+        readiness: point?.body_battery_max ?? null,
+        hrv: point?.hrv_overnight ?? point?.hrv?.avgOvernightHrv ?? null,
+      };
+    }
+
+    function getEightMetrics(point) {
+      const total = point?.sleep_duration_s ?? null;
+      const deep = point?.deep_sleep_s ?? null;
+      const rem = point?.rem_sleep_s ?? null;
+      return {
+        score: point?.sleep_score ?? null,
+        total,
+        deep,
+        rem,
+        deepPercent: deriveSleepStagePercent(deep, total),
+        remPercent: deriveSleepStagePercent(rem, total),
+        efficiency: point?.sleep_efficiency ?? (
+          point?.sleep_duration_s && point?.awake_s !== null && point?.awake_s !== undefined
+            ? ((point.sleep_duration_s / (point.sleep_duration_s + point.awake_s)) * 100)
+            : null
+        ),
+        readiness: null,
+        hrv: point?.hrv ?? point?.avg_hrv ?? point?.hrv_rmssd ?? null,
+      };
+    }
+
+    function buildLineDataset(label, data, borderColor) {
+      if (!Array.isArray(data) || !data.some(value => value !== null && value !== undefined)) {
+        return null;
+      }
+      return {
+        label,
+        data,
+        borderColor,
+        backgroundColor: 'transparent',
+      };
+    }
+
+    function buildGarminTrendMapFrom(garminTrends) {
+      return new Map((Array.isArray(garminTrends) ? garminTrends : []).map(point => [point.date, point]));
+    }
+
+    function buildOuraHistoryMapFrom(historyData) {
+      return new Map((Array.isArray(historyData) ? historyData : []).map(record => [record.date, record]));
+    }
+
+    function buildOuraHistoryMapWithToday(historyData, todayData) {
+      const map = buildOuraHistoryMapFrom(historyData);
+      if (todayData?.date) map.set(todayData.date, todayData);
+      return map;
+    }
+
+    function buildEightSleepMapFrom(eightSleepHistory) {
+      return new Map((Array.isArray(eightSleepHistory) ? eightSleepHistory : []).map(point => [point.date, point]));
+    }
+
+    function hasSleepValues(metrics) {
+      return ['score', 'total', 'deep', 'rem', 'efficiency'].some(key => metrics?.[key] !== null && metrics?.[key] !== undefined);
+    }
+
+    function averageNumbers(values) {
+      const normalized = values
+        .map(value => Number(value))
+        .filter(value => Number.isFinite(value));
+      if (!normalized.length) return null;
+      return normalized.reduce((sum, value) => sum + value, 0) / normalized.length;
+    }
+
+    function findLatestOuraRecord() {
+      if (hasSleepValues(getOuraMetrics(state.todayData))) return state.todayData;
+      for (let index = state.historyData.length - 1; index >= 0; index -= 1) {
+        if (hasSleepValues(getOuraMetrics(state.historyData[index]))) return state.historyData[index];
+      }
+      return null;
+    }
+
+    function findLatestGarminRecord() {
+      for (let index = state.garminTrends.length - 1; index >= 0; index -= 1) {
+        if (hasSleepValues(getGarminMetrics(state.garminTrends[index]))) return state.garminTrends[index];
+      }
+      return null;
+    }
+
+    function findLatestEightSleepRecord() {
+      for (let index = state.eightSleepHistory.length - 1; index >= 0; index -= 1) {
+        if (hasSleepValues(getEightMetrics(state.eightSleepHistory[index]))) return state.eightSleepHistory[index];
+      }
+      return null;
+    }
+
+    function buildCurrentSleepDevices() {
+      const devices = [
+        { key: 'eight', label: 'Eight Sleep', metrics: getEightMetrics(findLatestEightSleepRecord()) },
+        { key: 'oura', label: 'Oura Ring', metrics: getOuraMetrics(findLatestOuraRecord()) },
+      ];
+      const garminMetrics = getGarminMetrics(findLatestGarminRecord());
+      if (hasSleepValues(garminMetrics)) {
+        devices.push({ key: 'garmin', label: 'Garmin', metrics: garminMetrics });
+      }
+      return devices;
+    }
+
+    function getSleepHistoryRows() {
+      const rows = [];
+      state.historyData.forEach(record => {
+        const oura = getOuraMetrics(record);
+        const garmin = getGarminMetrics(record?.garmin || null);
+        if (hasSleepValues(oura) || hasSleepValues(garmin)) {
+          rows.push({ date: record.date, oura, garmin });
+        }
+      });
+      return rows;
+    }
+
+    function getEightHistoryRows() {
+      return state.eightSleepHistory
+        .map(point => ({ date: point.date, eight: getEightMetrics(point) }))
+        .filter(row => hasSleepValues(row.eight));
+    }
+
+    function getSleepFallbackScore(metrics) {
+      if (metrics?.score !== null && metrics?.score !== undefined) return metrics.score;
+      const durationScore = Number.isFinite(Number(metrics?.total))
+        ? Math.min((Number(metrics.total) / (8 * 3600)) * 100, 100)
+        : null;
+      const efficiencyScore = Number.isFinite(Number(metrics?.efficiency)) ? Number(metrics.efficiency) : null;
+      return averageNumbers([durationScore, efficiencyScore]);
+    }
+
+    function getSleepMetricValue(metrics, metricKey, useFallbackScore = false) {
+      if (metricKey === 'score') {
+        return useFallbackScore ? getSleepFallbackScore(metrics) : metrics?.score ?? null;
+      }
+      return metrics?.[metricKey] ?? null;
+    }
+
+    function buildSleepHistoricalAverage(metricKey, useFallbackScore = false) {
+      const averages = [];
+      const ouraGarminHistory = getSleepHistoryRows();
+      const eightHistory = getEightHistoryRows();
+
+      ouraGarminHistory.forEach(row => {
+        const currentAverage = averageNumbers([
+          getSleepMetricValue(row.oura, metricKey, useFallbackScore),
+          getSleepMetricValue(row.garmin, metricKey, useFallbackScore),
+        ]);
+        if (currentAverage !== null) averages.push(currentAverage);
+      });
+
+      eightHistory.forEach(row => {
+        const value = getSleepMetricValue(row.eight, metricKey, useFallbackScore);
+        if (Number.isFinite(Number(value))) averages.push(Number(value));
+      });
+
+      return averageNumbers(averages);
+    }
+
+    function filterWithingsHistoryByRange(history, rangeKey) {
+      if (!Array.isArray(history) || !history.length || rangeKey === 'max') return history;
+      const latest = new Date(`${history[history.length - 1].date}T00:00:00`);
+      let start;
+
+      if (rangeKey === 'ytd') {
+        start = new Date(latest.getFullYear(), 0, 1);
+      } else {
+        const years = Number(rangeKey.replace('y', ''));
+        start = new Date(latest);
+        start.setFullYear(latest.getFullYear() - years);
+      }
+
+      return history.filter(item => {
+        if (!item?.date) return false;
+        const date = new Date(`${item.date}T00:00:00`);
+        return date >= start;
+      });
+    }
+
+    function findClosestWithingsValue(history, latestDateStr, days, field) {
+      if (!Array.isArray(history) || !latestDateStr) return null;
+      const latestDate = new Date(`${latestDateStr}T00:00:00`);
+      const targetDate = new Date(latestDate);
+      targetDate.setDate(targetDate.getDate() - days);
+
+      for (let index = history.length - 1; index >= 0; index -= 1) {
+        const item = history[index];
+        if (!item?.date || item.date >= latestDateStr) continue;
+        const value = Number(item?.[field]);
+        if (!Number.isFinite(value)) continue;
+        const itemDate = new Date(`${item.date}T00:00:00`);
+        if (itemDate <= targetDate) return value;
+      }
+
+      return null;
+    }
+
+    function buildBodyDeltaLine(currentValue, history, latestDateStr, field, formatter) {
+      if (!Number.isFinite(Number(currentValue)) || !latestDateStr) return '—';
+
+      const baseline7d = findClosestWithingsValue(history, latestDateStr, 7, field);
+      const baseline30d = findClosestWithingsValue(history, latestDateStr, 30, field);
+      const delta7d = baseline7d === null ? '—' : formatter(Number(currentValue) - baseline7d);
+      const delta30d = baseline30d === null ? '—' : formatter(Number(currentValue) - baseline30d);
+
+      return `${delta7d} vs 7d  ${delta30d} vs 30d`;
+    }
+
+    function buildSleepScoreSeries(garminTrends, historyData, todayData, eightSleepHistory, days = 30) {
+      const garminMap = buildGarminTrendMapFrom(garminTrends);
+      const ouraMap = buildOuraHistoryMapWithToday(historyData, todayData);
+      const eightMap = buildEightSleepMapFrom(eightSleepHistory);
+
+      return lastNDates(days).map(date => ({
+        date,
+        garmin: getGarminMetrics(garminMap.get(date) || null),
+        oura: getOuraMetrics(ouraMap.get(date) || null),
+        eight: getEightMetrics(eightMap.get(date) || null),
+      }));
+    }
+
+    function renderSleepComparison() {
+      const devices = buildCurrentSleepDevices();
+      const rows = [
+        { label: 'Score', key: 'score', formatter: value => formatScore(value), deltaFormatter: value => Number(value).toFixed(1), useFallbackScore: true },
+        { label: 'Efficiency (%)', key: 'efficiency', formatter: value => formatPercent(value), deltaFormatter: value => `${Number(value).toFixed(1)}%`, useFallbackScore: false },
+        { label: 'Total Sleep (h:mm)', key: 'total', formatter: value => formatSleepDuration(value), deltaFormatter: value => formatSleepDuration(value), useFallbackScore: false },
+        { label: 'Deep Sleep (h:mm)', key: 'deep', formatter: value => formatSleepDuration(value), deltaFormatter: value => formatSleepDuration(value), useFallbackScore: false },
+        { label: 'REM Sleep (h:mm)', key: 'rem', formatter: value => formatSleepDuration(value), deltaFormatter: value => formatSleepDuration(value), useFallbackScore: false },
+      ];
+
+      $('sleep-comparison-panel').innerHTML = `
+        <div class="table-wrap">
+          <table id="sleep-comparison">
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th>Average</th>
+                ${devices.map(device => `<th>${escapeHtml(device.label)}</th>`).join('')}
+                <th>vs 30d avg</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map(row => {
+                const currentAverage = averageNumbers(devices.map(device => getSleepMetricValue(device.metrics, row.key, row.useFallbackScore)));
+                const historicalAverage = buildSleepHistoricalAverage(row.key, row.useFallbackScore);
+                const delta = formatVsAverageDelta(currentAverage, historicalAverage, row.deltaFormatter);
+
+                return `
+                  <tr>
+                    <td class="table-metric-label">${row.label}</td>
+                    <td class="sleep-average-cell">${row.formatter(currentAverage)}</td>
+                    ${devices.map(device => `<td>${row.formatter(getSleepMetricValue(device.metrics, row.key, row.useFallbackScore))}</td>`).join('')}
+                    <td class="table-muted">${delta}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderSleepHistory30d(garminTrends, historyData, todayData, eightSleepHistory) {
+      const garminMap = buildGarminTrendMapFrom(garminTrends);
+      const ouraMap = buildOuraHistoryMapWithToday(historyData, todayData);
+      const eightMap = buildEightSleepMapFrom(eightSleepHistory);
+      const rows = lastNDates(30).reverse().map(date => {
+        const garmin = getGarminMetrics(garminMap.get(date) || null);
+        const oura = getOuraMetrics(ouraMap.get(date) || null);
+        const eight = getEightMetrics(eightMap.get(date) || null);
+
+        return `
+          <tr>
+            <td>${formatDateLabel(date)}</td>
+            <td>${formatScore(garmin.score)}</td>
+            <td>${formatScore(oura.score)}</td>
+            <td>${formatScore(getSleepFallbackScore(eight))}</td>
+            <td>${formatSleepDuration(garmin.total)}</td>
+            <td>${formatPercent(garmin.deepPercent)}</td>
+            <td>${formatSleepDuration(oura.total)}</td>
+            <td>${formatSleepDuration(eight.total)}</td>
+          </tr>
+        `;
+      }).join('');
+
+      $('sleep-history').innerHTML = `
+        <div class="table-wrap max-400">
+          <table id="sleep-history-30d" class="sleep-history-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Garmin Score</th>
+                <th>Oura Score</th>
+                <th>Eight Score</th>
+                <th>Garmin Total</th>
+                <th>Garmin Deep%</th>
+                <th>Oura Total</th>
+                <th>Eight Sleep Total</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function lastNDates(days) {
+      const end = new Date();
+      end.setHours(0, 0, 0, 0);
+      const values = [];
+      for (let offset = days - 1; offset >= 0; offset -= 1) {
+        const current = new Date(end);
+        current.setDate(end.getDate() - offset);
+        values.push(current.toISOString().slice(0, 10));
+      }
+      return values;
+    }
+
+    function buildRecordMap() {
+      const map = new Map();
+      state.historyData.forEach(record => {
+        if (record?.date) map.set(record.date, record);
+      });
+      if (state.todayData?.date) map.set(state.todayData.date, state.todayData);
+      return map;
+    }
+
+    function buildGarminTrendMap() {
+      return new Map(state.garminTrends.map(point => [point.date, point]));
+    }
+
+    function buildEightSleepMap() {
+      return new Map(state.eightSleepHistory.map(point => [point.date, point]));
+    }
+
+    function buildSeries(days = 30) {
+      const recordMap = buildRecordMap();
+      const garminMap = buildGarminTrendMap();
+      const eightMap = buildEightSleepMap();
+
+      return lastNDates(days).map(date => {
+        const record = recordMap.get(date) || null;
+        const garmin = garminMap.get(date) || null;
+        const eight = eightMap.get(date) || null;
+        return {
+          date,
+          record,
+          oura: getOuraMetrics(record),
+          garmin: getGarminMetrics(garmin),
+          eight: getEightMetrics(eight),
+          garminPoint: garmin,
+        };
+      });
+    }
+
+    function chartOptions(overrides = {}) {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true, pointStyle: 'circle' },
+          },
+        },
+        elements: {
+          line: { tension: 0.3, borderWidth: 2.5 },
+          point: { radius: 2, hoverRadius: 5 },
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: { maxTicksLimit: 8, maxRotation: 0 },
+          },
+          y: {
+            grid: { color: 'rgba(255,255,255,0.06)' },
+            ticks: { padding: 8 },
+          },
+        },
+        ...overrides,
+      };
+    }
+
+    function ensureChartCanvas(id) {
+      let canvas = $(id);
+      if (canvas) return canvas;
+      const wrap = document.querySelector(`[data-chart-wrap="${id}"]`);
+      if (!wrap) return null;
+      wrap.innerHTML = `<canvas id="${id}"></canvas>`;
+      return $(id);
+    }
+
+    function setChartEmptyState(id, message) {
+      if (charts[id]) {
+        charts[id].destroy();
+        delete charts[id];
+      }
+      const wrap = document.querySelector(`[data-chart-wrap="${id}"]`);
+      if (!wrap) return;
+      wrap.innerHTML = emptyMarkup(message);
+    }
+
+    function renderChart(id, config) {
+      const canvas = ensureChartCanvas(id);
+      if (!canvas) return;
+      if (charts[id]) charts[id].destroy();
+      charts[id] = new Chart(canvas, config);
+    }
+
+    async function fetchJson(url, options = {}) {
+      const response = await fetch(url, options);
+      const payload = await response.json();
+      if (!response.ok) {
+        const message = payload?.error || `HTTP ${response.status}`;
+        throw new Error(message);
+      }
+      return payload;
+    }
+
+    async function fetchAll() {
+      setStatus('Loading dashboard…', PALETTE.yellow);
+      const sleepComparisonEl = $('sleep-comparison-panel');
+      const sleepHistoryEl = $('sleep-history');
+      const activityTableEl = $('activity-table');
+
+      sleepComparisonEl.innerHTML = loadingMarkup('Fetching device sleep summaries…');
+      sleepHistoryEl.innerHTML = loadingMarkup('Building 30-day sleep history…');
+      activityTableEl.innerHTML = loadingMarkup('Loading Garmin activities…');
+
+      try {
+        const payload = await fetchJson('data.json');
+
+        state.historyData = Array.isArray(payload.history) ? payload.history : [];
+        state.todayData = payload.today_data || null;
+        state.garminTrends = Array.isArray(payload.garmin_trends) ? payload.garmin_trends : [];
+        state.garminActivities = Array.isArray(payload.garmin_activities) ? payload.garmin_activities : [];
+        state.withingsHistory = Array.isArray(payload.withings_history) ? payload.withings_history : [];
+        state.eightSleepHistory = Array.isArray(payload.eightsleep_history) ? payload.eightsleep_history : [];
+        state.longterm = payload.garmin_longterm || { rows: [], message: null };
+        state.fetchedAt = new Date();
+        state.longtermFetchedAt = new Date();
+
+        if (!state.todayData) {
+          throw new Error('Static dashboard data is unavailable');
+        }
+
+        renderDashboard();
+        setUpdated('core', state.fetchedAt);
+        setUpdated('longterm', state.longtermFetchedAt);
+        setStatus('Static dashboard loaded', PALETTE.green);
+      } catch (error) {
+        setStatus(`Load failed: ${error.message}`, PALETTE.red);
+        $('sleep-comparison-panel').innerHTML = emptyMarkup(error.message);
+        $('sleep-history').innerHTML = emptyMarkup('Unable to build sleep history right now.');
+        $('activity-table').innerHTML = emptyMarkup('Unable to load Garmin activities right now.');
+      }
+    }
+    function renderDashboard() {
+      const today = state.todayData || state.historyData[state.historyData.length - 1];
+      const series = buildSeries(30);
+      const sleepScoreSeries = buildSleepScoreSeries(state.garminTrends, state.historyData, state.todayData, state.eightSleepHistory, 30);
+
+      $('hero-date').textContent = today?.date ? formatLongDate(today.date) : 'Latest record unavailable';
+      $('hero-subtitle').textContent = 'Unified sleep, recovery, body composition, and Garmin activity tracking across the latest available data.';
+
+      const score = today?.computed?.overall_score ?? null;
+      const scoreEl = $('alfred-score');
+      scoreEl.textContent = score === null ? '—' : String(score);
+      scoreEl.className = `score-value ${score === null ? '' : score >= 70 ? 'score-good' : score >= 55 ? 'score-mid' : 'score-low'}`;
+      $('alfred-advice').textContent = today?.computed?.advice || 'No current advice available.';
+
+      renderSleepSection(sleepScoreSeries);
+      renderRecoverySection(today, series);
+      renderBodySection();
+      renderActivitySection();
+      renderTrendSection();
+      renderLongtermSection();
+    }
+
+    function renderSleepSection(sleepScoreSeries) {
+      renderSleepComparison();
+      renderSleepHistory30d(state.garminTrends, state.historyData, state.todayData, state.eightSleepHistory);
+
+      const sleepScoreDatasets = [
+        {
+          label: 'Garmin',
+          data: sleepScoreSeries.map(day => day.garmin.score),
+          borderColor: PALETTE.garmin,
+          backgroundColor: 'transparent',
+        },
+        {
+          label: 'Oura',
+          data: sleepScoreSeries.map(day => day.oura.score),
+          borderColor: PALETTE.oura,
+          backgroundColor: 'transparent',
+        },
+        {
+          label: 'Eight Sleep',
+          data: sleepScoreSeries.map(day => getSleepFallbackScore(day.eight)),
+          borderColor: PALETTE.eight,
+          backgroundColor: 'transparent',
+        },
+      ].filter(dataset => dataset.data.some(value => value !== null && value !== undefined));
+
+      if (!sleepScoreDatasets.length) {
+        setChartEmptyState('chart-sleep-score', 'No sleep score data available for the last 30 days.');
+      } else {
+        renderChart('chart-sleep-score', {
+          type: 'line',
+          data: {
+            labels: sleepScoreSeries.map(day => formatDateLabel(day.date)),
+            datasets: sleepScoreDatasets,
+          },
+          options: chartOptions({
+            scales: {
+              x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { maxTicksLimit: 8, maxRotation: 0 } },
+              y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.06)' } },
+            },
+          }),
+        });
+      }
+    }
+
+    function renderRecoverySection(today, series) {
+      const todayGarminPoint = state.garminTrends[state.garminTrends.length - 1] || null;
+      const latestEightSleepPoint = state.eightSleepHistory[state.eightSleepHistory.length - 1] || null;
+      const bodyBatteryTrainingRow = $('body-battery-training-row');
+      const trainingReadiness = todayGarminPoint?.training_readiness;
+      const hrvDatasets = [
+        buildLineDataset('Garmin HRV', series.map(day => day.garmin.hrv), PALETTE.garmin),
+        buildLineDataset('Oura HRV', series.map(day => day.oura.hrv), PALETTE.oura),
+        buildLineDataset('Eight Sleep HRV', series.map(day => day.eight.hrv), PALETTE.eight),
+      ].filter(Boolean);
+      const readinessDatasets = [
+        buildLineDataset('Oura Readiness', series.map(day => day.oura.readiness), PALETTE.oura),
+        buildLineDataset('Garmin Body Battery Max', series.map(day => day.garmin.readiness), PALETTE.garmin),
+      ].filter(Boolean);
+
+      $('readiness-kpi').textContent = dash(today?.oura?.daily_readiness?.score, item => Math.round(item));
+      $('readiness-note').textContent = `HRV balance ${dash(today?.oura?.daily_readiness?.contributors?.hrv_balance)}`;
+      $('body-battery-kpi').textContent = dash(todayGarminPoint?.body_battery_max, item => Math.round(item));
+      $('body-battery-note').textContent = 'Peak today';
+      bodyBatteryTrainingRow.hidden = trainingReadiness == null;
+      $('body-battery-training-badge').textContent = `Training Readiness: ${dash(trainingReadiness, item => Math.round(item))}`;
+      $('garmin-hrv-kpi').textContent = dash(todayGarminPoint?.hrv_overnight, item => `${Number(item).toFixed(1)} ms`);
+      $('garmin-hrv-note').textContent = `Weekly avg ${dash(todayGarminPoint?.hrv_weekly_avg, item => `${Number(item).toFixed(1)} ms`)} • ${dash(todayGarminPoint?.hrv_status)}`;
+      $('eight-hrv-kpi').textContent = dash(getEightMetrics(latestEightSleepPoint).hrv, item => `${Number(item).toFixed(1)} ms`);
+      $('eight-hrv-note').textContent = latestEightSleepPoint?.date ? `Latest ${formatDateLabel(latestEightSleepPoint.date)}` : 'Latest overnight';
+
+      if (!hrvDatasets.length) {
+        setChartEmptyState('chart-hrv', 'No HRV data available for the last 30 days.');
+      } else {
+        renderChart('chart-hrv', {
+          type: 'line',
+          data: {
+            labels: series.map(day => formatDateLabel(day.date)),
+            datasets: hrvDatasets,
+          },
+          options: chartOptions({
+            scales: {
+              x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { maxTicksLimit: 8, maxRotation: 0 } },
+              y: {
+                grid: { color: 'rgba(255,255,255,0.06)' },
+                ticks: { callback: value => `${value} ms` },
+              },
+            },
+          }),
+        });
+      }
+
+      if (!readinessDatasets.length) {
+        setChartEmptyState('chart-readiness', 'No readiness data available for the last 30 days.');
+      } else {
+        renderChart('chart-readiness', {
+          type: 'line',
+          data: {
+            labels: series.map(day => formatDateLabel(day.date)),
+            datasets: readinessDatasets,
+          },
+          options: chartOptions({
+            scales: {
+              x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { maxTicksLimit: 8, maxRotation: 0 } },
+              y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.06)' } },
+            },
+          }),
+        });
+      }
+    }
+
+    function renderBodySection() {
+      const history = state.withingsHistory;
+      const latest = history.length ? history[history.length - 1] : null;
+      const weightSource = latest;
+
+      $('weight-kpi').textContent = formatWeight(weightSource?.weight_kg);
+      $('weight-note').textContent = latest?.date ? `Last recorded: ${latest.date}` : 'Last recorded: —';
+      $('body-fat-kpi').textContent = formatBodyFat(weightSource?.fat_ratio_pct);
+      $('fat-mass-kpi').textContent = formatWeight(weightSource?.fat_mass_kg);
+      $('muscle-mass-kpi').textContent = formatWeight(weightSource?.muscle_mass_kg);
+      $('weight-deltas').textContent = buildBodyDeltaLine(weightSource?.weight_kg, history, latest?.date, 'weight_kg', formatSignedWeightDelta);
+      $('body-fat-deltas').textContent = buildBodyDeltaLine(weightSource?.fat_ratio_pct, history, latest?.date, 'fat_ratio_pct', formatSignedBodyFatDelta);
+
+      if (!history.length) {
+        renderChart('chart-weight', {
+          type: 'line',
+          data: { labels: [], datasets: [] },
+          options: chartOptions(),
+        });
+        return;
+      }
+
+      const filteredHistory = filterWithingsHistoryByRange(history, state.weightRange);
+      updateWeightRangeControls();
+
+      if (!filteredHistory.length) {
+        setChartEmptyState('chart-weight', 'No weight data available in the selected range.');
+        return;
+      }
+
+      renderChart('chart-weight', {
+        type: 'line',
+        data: {
+          labels: filteredHistory.map(item => formatDateLabel(item.date)),
+          datasets: [
+            {
+              label: 'Weight',
+              data: filteredHistory.map(item => item.weight_kg),
+              borderColor: PALETTE.eight,
+              backgroundColor: 'rgba(251,146,60,0.10)',
+              yAxisID: 'y',
+            },
+            {
+              label: 'Body Fat %',
+              data: filteredHistory.map(item => item.fat_ratio_pct),
+              borderColor: PALETTE.oura,
+              backgroundColor: 'rgba(167,139,250,0.10)',
+              yAxisID: 'y1',
+            },
+          ],
+        },
+        options: chartOptions({
+          scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { maxTicksLimit: 8, maxRotation: 0 } },
+            y: {
+              position: 'left',
+              grid: { color: 'rgba(255,255,255,0.06)' },
+              ticks: { callback: value => `${value} kg` },
+            },
+            y1: {
+              position: 'right',
+              grid: { drawOnChartArea: false },
+              ticks: { callback: value => `${value}%` },
+            },
+          },
+        }),
+      });
+    }
+
+    function updateWeightRangeControls() {
+      document.querySelectorAll('[data-weight-range]').forEach(button => {
+        button.classList.toggle('active', button.dataset.weightRange === state.weightRange);
+      });
+    }
+
+    function renderActivitySection() {
+      if (!state.garminActivities.length) {
+        $('activity-table').innerHTML = emptyMarkup('No recent activities');
+        return;
+      }
+
+      $('activity-table').innerHTML = `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Activity</th>
+                <th>Duration</th>
+                <th>Calories</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${state.garminActivities.map(item => `
+                <tr>
+                  <td>${formatDateLabel(item.date)}</td>
+                  <td>${dash(item.name || item.activity_type, value => escapeHtml(String(value).replace(/_/g, ' ')))}</td>
+                  <td>${formatActivityDuration(item.duration_seconds)}</td>
+                  <td>${formatKcal(item.calories)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderTrendSection() {
+      renderChart('chart-rhr', {
+        type: 'line',
+        data: {
+          labels: state.garminTrends.map(item => formatDateLabel(item.date)),
+          datasets: [
+            {
+              label: 'Resting HR',
+              data: state.garminTrends.map(item => item.resting_heart_rate),
+              borderColor: PALETTE.red,
+              backgroundColor: 'transparent',
+            },
+          ],
+        },
+        options: chartOptions({
+          scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { maxTicksLimit: 8, maxRotation: 0 } },
+            y: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { callback: value => `${value} bpm` } },
+          },
+        }),
+      });
+
+      renderChart('chart-intensity', {
+        type: 'bar',
+        data: {
+          labels: state.garminTrends.map(item => formatDateLabel(item.date)),
+          datasets: [
+            {
+              label: 'Moderate',
+              data: state.garminTrends.map(item => item.moderate_intensity_minutes || 0),
+              backgroundColor: 'rgba(79,156,249,0.75)',
+              borderColor: PALETTE.garmin,
+              borderWidth: 1,
+              stack: 'intensity',
+              borderRadius: 6,
+            },
+            {
+              label: 'Vigorous',
+              data: state.garminTrends.map(item => item.vigorous_intensity_minutes || 0),
+              backgroundColor: 'rgba(251,146,60,0.78)',
+              borderColor: PALETTE.eight,
+              borderWidth: 1,
+              stack: 'intensity',
+              borderRadius: 6,
+            },
+          ],
+        },
+        options: chartOptions({
+          scales: {
+            x: { stacked: true, grid: { display: false }, ticks: { maxTicksLimit: 8, maxRotation: 0 } },
+            y: {
+              stacked: true,
+              beginAtZero: true,
+              grid: { color: 'rgba(255,255,255,0.06)' },
+              ticks: { callback: value => `${value} min` },
+            },
+          },
+        }),
+      });
+    }
+
+    function renderLongtermSection() {
+      const messageEl = $('longterm-message');
+      const rows = Array.isArray(state.longterm?.rows) ? state.longterm.rows : [];
+      const message = state.longterm?.message || null;
+      const longtermChartIds = ['chart-longterm-rhr', 'chart-longterm-sleep', 'chart-longterm-hrv'];
+      const hasRows = rows.length > 0;
+      const hasRestingHr = rows.some(row => row.avg_resting_hr != null);
+      const hasSleepScore = rows.some(row => row.avg_sleep_score != null);
+      const hasHrv = rows.some(row => row.avg_hrv_overnight != null);
+
+      if (message) {
+        messageEl.textContent = message;
+        messageEl.classList.remove('hidden');
+        setChartEmptyState('chart-longterm-rhr', 'Resting HR trend will appear as historical data accumulates.');
+        setChartEmptyState('chart-longterm-sleep', 'Sleep trend will appear as historical data accumulates.');
+        setChartEmptyState('chart-longterm-hrv', 'HRV trend will appear as historical data accumulates.');
+        return;
+      }
+
+      if (!hasRows || (!hasRestingHr && !hasSleepScore && !hasHrv)) {
+        messageEl.textContent = 'Insufficient historical data — charts will populate over time';
+        messageEl.classList.remove('hidden');
+        setChartEmptyState('chart-longterm-rhr', 'No resting HR history yet.');
+        setChartEmptyState('chart-longterm-sleep', 'No sleep score history yet.');
+        setChartEmptyState('chart-longterm-hrv', 'No HRV history yet.');
+        return;
+      }
+
+      messageEl.textContent = '';
+      messageEl.classList.add('hidden');
+
+      const labels = rows.map(item => item.period_label || formatDateLabel(item.period_start));
+
+      if (!hasRestingHr) {
+        setChartEmptyState('chart-longterm-rhr', 'No resting HR history yet.');
+      } else {
+        renderChart('chart-longterm-rhr', {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{ label: 'Resting HR', data: rows.map(item => item.avg_resting_hr), borderColor: PALETTE.red, backgroundColor: 'transparent' }],
+          },
+          options: chartOptions({
+            scales: {
+              x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { maxTicksLimit: 6, maxRotation: 0 } },
+              y: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { callback: value => `${value} bpm` } },
+            },
+          }),
+        });
+      }
+
+      if (!hasSleepScore) {
+        setChartEmptyState('chart-longterm-sleep', 'No sleep score history yet.');
+      } else {
+        renderChart('chart-longterm-sleep', {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{ label: 'Sleep Score', data: rows.map(item => item.avg_sleep_score), borderColor: PALETTE.oura, backgroundColor: 'transparent' }],
+          },
+          options: chartOptions({
+            scales: {
+              x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { maxTicksLimit: 6, maxRotation: 0 } },
+              y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.06)' } },
+            },
+          }),
+        });
+      }
+
+      if (!hasHrv) {
+        setChartEmptyState('chart-longterm-hrv', 'No HRV history yet.');
+      } else {
+        renderChart('chart-longterm-hrv', {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{ label: 'HRV', data: rows.map(item => item.avg_hrv_overnight), borderColor: PALETTE.green, backgroundColor: 'transparent' }],
+          },
+          options: chartOptions({
+            scales: {
+              x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { maxTicksLimit: 6, maxRotation: 0 } },
+              y: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { callback: value => `${value} ms` } },
+            },
+          }),
+        });
+      }
+    }
+
+    function restoreInsightsCache() {
+      try {
+        const raw = localStorage.getItem('health_insights_cache');
+        if (!raw) return;
+        const payload = JSON.parse(raw);
+        if (!payload?.insights) return;
+        const ageMs = Date.now() - new Date(payload.generated_at).getTime();
+        if (!Number.isFinite(ageMs) || ageMs > 6 * 60 * 60 * 1000) return;
+        showInsights(payload.insights, payload.generated_at, payload.error === 'ollama_offline');
+      } catch (_) {}
+    }
+
+    function showInsights(text, timestamp, isInfo) {
+      const output = $('insights-output');
+      const normalizedText = String(text || '');
+      const shouldShowInfo = isInfo || normalizedText.includes('Ollama not available');
+      if (shouldShowInfo) {
+        output.innerHTML = ollamaInfoMarkup();
+      } else {
+        output.textContent = text;
+      }
+      output.className = `insight-output${shouldShowInfo ? ' is-info' : ''}`;
+      $('insights-timestamp').textContent = timestamp ? `Last updated ${timestampLabel(timestamp)}` : 'Last updated —';
+    }
+
+    async function analyzeInsights() {
+      $('insights-loading').classList.remove('hidden');
+      try {
+        const payload = await fetchJson('/api/insights', { method: 'POST' });
+        $('insights-loading').classList.add('hidden');
+        if (payload.error === 'ollama_offline' || String(payload.error || payload.insights || '').includes('Ollama not available')) {
+          showInsights('🧠 AI insights require Ollama running locally. Start with: ollama serve', payload.generated_at, true);
+          return;
+        }
+        showInsights(payload.insights || 'No insights returned.', payload.generated_at, false);
+        localStorage.setItem('health_insights_cache', JSON.stringify(payload));
+      } catch (error) {
+        $('insights-loading').classList.add('hidden');
+        const message = (error.message.includes('Ollama') || error.message.includes('ollama_offline'))
+          ? '🧠 AI insights require Ollama running locally. Start with: ollama serve'
+          : `Insights unavailable: ${error.message}`;
+        showInsights(message, null, true);
+      }
+    }
+
+    async function refreshDashboard() {
+      await fetchAll();
+    }
+
+    $('btn-analyze').addEventListener('click', analyzeInsights);
+    document.querySelectorAll('[data-weight-range]').forEach(button => {
+      button.addEventListener('click', () => {
+        const nextRange = button.dataset.weightRange || 'max';
+        if (nextRange === state.weightRange) return;
+        state.weightRange = nextRange;
+        renderBodySection();
+      });
+    });
+    updateWeightRangeControls();
+    restoreInsightsCache();
+    fetchAll();
+    setInterval(fetchAll, 5 * 60 * 1000);
+  </script>
+</body>
+</html>
